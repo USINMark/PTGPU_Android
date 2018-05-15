@@ -31,7 +31,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define INTERSECT_STACK_SIZE (18)
 #define MTEPSILON 0.000001
 
-void swap(float *a, float *b)
+inline void swap(float *a, float *b)
 {
 	float temp = *a;
 	*a = *b;
@@ -69,7 +69,6 @@ __constant
 
 
 //Written in the paper "Fast, Minimum Storage Ray/ Triangle Intersection".
-
 float TriangleIntersect(
 #ifdef GPU_KERNEL
 	__constant
@@ -198,21 +197,33 @@ __constant
 #endif
 	const Poi *pois,
 	const unsigned int poiCnt,
+#if (ACCELSTR == 1)
 #ifdef GPU_KERNEL
 	__constant
 #endif
- TreeNode *tn, 
+	BVHTreeNode *tn,
 #ifdef GPU_KERNEL
 	__constant
 #endif
- TreeNode *tl, 
+	BVHTreeNode *tl, 
+#elif (ACCELSTR == 2)
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	KDNodeGPU *kng,
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	int *kn,
+	int szkng, int szkn,
+#endif
 #ifdef GPU_KERNEL
 	__constant
 #endif
 	const Ray *r,
 	float *t,
 	unsigned int *id) {
-#ifdef NOBVH
+#if (ACCELSTR == 0)
 	float inf = (*t) = 1e20f;
 
 	unsigned int i = shapeCnt;
@@ -227,7 +238,7 @@ __constant
 	}
 
 	return (*t < inf);
-#else
+#elif (ACCELSTR == 1)
 	(*t) = 1e20f;
 	
     // Use static allocation because malloc() can't be called in parallel
@@ -247,7 +258,7 @@ __constant
                 stack[--topIndex] = tn[n].nLeft;
 
                 if (topIndex < 0) {
-                    printf("Intersect stack not big enough. Increase INTERSECT_STACK_SIZE!\n");
+                    //printf("Intersect stack not big enough. Increase INTERSECT_STACK_SIZE!\n");
                     return 0;
                 }
 			}
@@ -261,7 +272,6 @@ __constant
                     if (d < *t) {
                         *t = d;
                         *id = tl[tn[n].nLeft].nShape;
-
                     }
                     intersected = 1;
                 }
@@ -278,12 +288,60 @@ __constant
                 }				
 			}
 			else {
-				printf("Unknown node, %d\n", tn[n].leaf);
+				//printf("Unknown node, %d\n", tn[n].leaf);
             }
         }
     }
 	
     return intersected;
+#elif (ACCELSTR == 2)
+	(*t) = 1e20f;
+
+	// Use static allocation because malloc() can't be called in parallel
+	// Use stack to traverse BVH to save space (cost is O(height))
+	int stack[INTERSECT_STACK_SIZE];
+	int topIndex = INTERSECT_STACK_SIZE;
+	stack[--topIndex] = 1; //tn;
+	int intersected = 0, status = 0;
+
+	// Do while stack is not empty
+	while (topIndex != INTERSECT_STACK_SIZE) {
+		int n = stack[topIndex++];
+
+		if (intersection_bound_test(*r, kng[n].bound)) {
+			if (kng[n].leaf == 0) {
+				stack[--topIndex] = kng[n].nRight;
+				stack[--topIndex] = kng[n].nLeft;
+
+				if (topIndex < 0) {
+					//printf("Intersect stack not big enough. Increase INTERSECT_STACK_SIZE!\n");
+					return 0;
+				}
+			}
+			else if (kng[n].leaf == 1) {
+				double d = 0.0f;
+
+				for (int i = kng[n].min; i < kng[n].max; i++) {
+					if (shapes[kn[i]].type == SPHERE) d = SphereIntersect(&shapes[kn[i]].s, r);
+					if (shapes[kn[i]].type == TRIANGLE) d = TriangleIntersect(&shapes[kn[i]].t, pois, poiCnt, r);
+
+					if (d != 0.0) {
+						if (d < *t) {
+							*t = d;
+							*id = kn[i];
+
+						}
+						intersected = 1;
+					}
+				}				
+			}
+			else {
+				//printf("Unknown node, %d\n", tn[n].leaf);
+			}
+		}
+	}
+
+	return intersected;
 #endif
 }
 
@@ -362,6 +420,230 @@ __constant
 	}
 }
 
+void RadianceOnePathTracing(
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	const Shape *shapes,
+	const unsigned int shapeCnt,
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	const Poi *pois,
+	const unsigned int poiCnt,
+#if (ACCELSTR == 1)
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	BVHTreeNode *btn,
+#ifdef GPU_KERNEL
+	__constant
+#endif	
+	BVHTreeNode *btl,
+#elif (ACCELSTR ==2)
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	KDNodeGPU *kng,
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	int *kn,
+	int szkng, int szkn,
+#endif
+	Ray *currentRay,
+	unsigned int *seed0, unsigned int *seed1, int depth, Vec *rad, Vec *throughput, int *specularBounce, int *terminated, 
+	Vec *result) {
+	float t; /* distance to intersection */
+	unsigned int id = 0; /* id of intersected object */
+
+	if (!Intersect(shapes, shapeCnt, pois, poiCnt,
+#if (ACCELSTR == 1)
+		btn, btl,
+#elif (ACCELSTR == 2)
+		kng, kn, szkng, szkn, 
+#endif
+		currentRay, &t, &id)) {
+		*result = *rad;
+		*terminated = 1;
+		return;
+	}
+
+	Vec hitPoint;
+	vsmul(hitPoint, t, currentRay->d);
+	vadd(hitPoint, currentRay->o, hitPoint);
+
+	Vec normal, col;
+	enum Refl refl;
+	Shape s = shapes[id];
+
+	if (s.type == SPHERE)
+	{
+		vsub(normal, hitPoint, s.s.p);
+
+		refl = s.s.refl;
+		col = s.s.c;
+	}
+	else if (s.type == TRIANGLE)
+	{
+		Vec v0 = pois[s.t.p1].p, v1 = pois[s.t.p2].p, v2 = pois[s.t.p3].p, e1, e2;
+
+		vsub(e1, v1, v0);
+		vsub(e2, v2, v1);
+
+		vxcross(normal, e1, e2);
+
+		refl = s.t.refl;
+		col.x = col.y = 0.0f;
+		col.z = 1.0f;
+	}
+	vnorm(normal);
+
+	const float dp = vdot(normal, currentRay->d);
+
+	Vec nl;
+	// SIMT optimization
+	const float invSignDP = -1.f * sign(dp);
+
+	vsmul(nl, invSignDP, normal);
+
+	if (s.type == SPHERE)
+	{
+		/* Add emitted light */
+		Vec eCol;
+
+		vassign(eCol, s.s.e);
+		if (!viszero(eCol)) {
+			if (*specularBounce) {
+				vsmul(eCol, fabs(dp), eCol);
+				vmul(eCol, *throughput, eCol);
+				vadd(*rad, *rad, eCol);
+			}
+
+			*result = *rad;
+			*terminated = 1;
+
+			return;
+		}
+	}
+
+	if (refl == DIFF) { /* Ideal DIFFUSE reflection */
+		*specularBounce = 0;
+
+		vmul(*throughput, *throughput, col);
+
+		/* Direct lighting component */
+		Vec Ld;
+
+		SampleLights(shapes, shapeCnt, seed0, seed1, &hitPoint, &nl, &Ld);
+		vmul(Ld, *throughput, Ld);
+		vadd(*rad, *rad, Ld);
+
+		/* Diffuse component */
+		float r1 = 2.f * FLOAT_PI * GetRandom(seed0, seed1);
+		float r2 = GetRandom(seed0, seed1);
+		float r2s = sqrt(r2);
+
+		Vec w; 
+		vassign(w, nl);
+
+		Vec u, a;
+		if (fabs(w.x) > .1f) {
+			vinit(a, 0.f, 1.f, 0.f);
+		}
+		else {
+			vinit(a, 1.f, 0.f, 0.f);
+		}
+		vxcross(u, a, w);
+		vnorm(u);
+
+		Vec v, newDir;
+		vxcross(v, w, u);
+
+		vsmul(u, cos(r1) * r2s, u);
+		vsmul(v, sin(r1) * r2s, v);
+		vadd(newDir, u, v);
+		vsmul(w, sqrt(1 - r2), w);
+		vadd(newDir, newDir, w);
+
+		currentRay->o = hitPoint;
+		currentRay->d = newDir;
+
+		return;
+	}
+	else if (refl == SPEC) { /* Ideal SPECULAR reflection */
+		*specularBounce = 1;
+
+		Vec newDir;
+
+		vsmul(newDir, 2.f * vdot(normal, currentRay->d), normal);
+		vsub(newDir, currentRay->d, newDir);
+
+		vmul(*throughput, *throughput, col);
+		rinit(*currentRay, hitPoint, newDir);
+
+		return;
+	}
+	else {
+		*specularBounce = 1;
+
+		Vec newDir;
+		vsmul(newDir, 2.f * vdot(normal, currentRay->d), normal);
+		vsub(newDir, currentRay->d, newDir);
+
+		Ray reflRay; rinit(reflRay, hitPoint, newDir); /* Ideal dielectric REFRACTION */
+		int into = (vdot(normal, nl) > 0); /* Ray from outside going in? */
+
+		float nc = 1.f;
+		float nt = 1.5f;
+		float nnt = into ? nc / nt : nt / nc;
+		float ddn = vdot(currentRay->d, nl);
+		float cos2t = 1.f - nnt * nnt * (1.f - ddn * ddn);
+
+		if (cos2t < 0.f) { /* Total internal reflection */
+			vmul(*throughput, *throughput, col);
+			rassign(*currentRay, reflRay);
+
+			return;
+		}
+
+		float kk = (into ? 1 : -1) * (ddn * nnt + sqrt(cos2t));
+
+		Vec nkk, transDir;
+		vsmul(nkk, kk, normal);
+
+		vsmul(transDir, nnt, currentRay->d);
+		vsub(transDir, transDir, nkk);
+		vnorm(transDir);
+
+		float a = nt - nc;
+		float b = nt + nc;
+		float R0 = a * a / (b * b);
+		float c = 1 - (into ? -ddn : vdot(transDir, normal));
+
+		float Re = R0 + (1 - R0) * c * c * c * c*c;
+		float Tr = 1.f - Re;
+		float P = .25f + .5f * Re;
+		float RP = Re / P;
+		float TP = Tr / (1.f - P);
+
+		if (GetRandom(seed0, seed1) < P) { /* R.R. */
+			vsmul(*throughput, RP, *throughput);
+			vmul(*throughput, *throughput, col);
+			rassign(*currentRay, reflRay);
+
+			return;
+		}
+		else {
+			vsmul(*throughput, TP, *throughput);
+			vmul(*throughput, *throughput, col);
+			rinit(*currentRay, hitPoint, transDir);
+
+			return;
+		}
+	}
+}
+
 void RadiancePathTracing(
 #ifdef GPU_KERNEL
 	__constant
@@ -373,14 +655,26 @@ void RadiancePathTracing(
 #endif
 	const Poi *pois,
 	const unsigned int poiCnt,
+#if (ACCELSTR == 1)
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	TreeNode *tn, 
+	BVHTreeNode *btn,
 #ifdef GPU_KERNEL
 	__constant
 #endif	
-	TreeNode *tl, 
+	BVHTreeNode *btl, 
+#elif (ACCELSTR == 2)
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	KDNodeGPU *kng,
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	int *kn,
+	int szkng, int szkn,
+#endif
 	const Ray *startRay,
 	unsigned int *seed0, unsigned int *seed1,
 	Vec *result) {
@@ -390,187 +684,25 @@ void RadiancePathTracing(
 
 	unsigned int depth = 0;
 	int specularBounce = 1;
+	int terminated = 0;
+
 	for (;; ++depth) {
-		// Removed Russian Roulette in order to improve execution on SIMT
-		if (depth > 6) {
+		if (depth > MAX_DEPTH) {
 			*result = rad;
 			return;
 		}
 
-		float t; /* distance to intersection */
-		unsigned int id = 0; /* id of intersected object */
-		if (!Intersect(shapes, shapeCnt, pois, poiCnt, 
-		tn, tl,   
-		&currentRay, &t, &id)) {
+		RadianceOnePathTracing(shapes, shapeCnt, pois, poiCnt, 
+#if (ACCELSTR == 1)
+			btn, btl, 
+#elif (ACCELSTR == 2)
+			kng, kn, szkng, szkn, 
+#endif
+			&currentRay, seed0, seed1, depth, &rad, &throughput, &specularBounce, &terminated, result);
+
+		if (terminated == 1) {
 			*result = rad;
 			return;
-		}
-
-		Vec hitPoint;
-		vsmul(hitPoint, t, currentRay.d);
-		vadd(hitPoint, currentRay.o, hitPoint);
-
-		Vec normal, col;
-		enum Refl refl;
-		Shape s = shapes[id];
-
-		if (s.type == SPHERE)
-		{
-			vsub(normal, hitPoint, s.s.p);
-
-			refl = s.s.refl;
-			col = s.s.c;
-		}
-		else if (s.type == TRIANGLE)
-		{
-			Vec v0 = pois[s.t.p1].p, v1 = pois[s.t.p2].p, v2 = pois[s.t.p3].p, e1, e2;
-
-			vsub(e1, v1, v0);
-			vsub(e2, v2, v1);
-
-			vxcross(normal, e1, e2);
-
-			refl = s.t.refl;
-			col.x = col.y = 0.0f;
-			col.z = 1.0f;
-		}
-		vnorm(normal);
-
-		const float dp = vdot(normal, currentRay.d);
-
-		Vec nl;
-		// SIMT optimization
-		const float invSignDP = -1.f * sign(dp);
-		vsmul(nl, invSignDP, normal);
-
-		if (s.type == SPHERE)
-		{
-			/* Add emitted light */
-			Vec eCol; vassign(eCol, s.s.e);
-			if (!viszero(eCol)) {
-				if (specularBounce) {
-					vsmul(eCol, fabs(dp), eCol);
-					vmul(eCol, throughput, eCol);
-					vadd(rad, rad, eCol);
-				}
-
-				*result = rad;
-				return;
-			}
-		}
-
-		if (refl == DIFF) { /* Ideal DIFFUSE reflection */
-			specularBounce = 0;
-
-			vmul(throughput, throughput, col);
-
-			/* Direct lighting component */
-
-			Vec Ld;
-			SampleLights(shapes, shapeCnt, seed0, seed1, &hitPoint, &nl, &Ld);
-			vmul(Ld, throughput, Ld);
-			vadd(rad, rad, Ld);
-
-			/* Diffuse component */
-
-			float r1 = 2.f * FLOAT_PI * GetRandom(seed0, seed1);
-			float r2 = GetRandom(seed0, seed1);
-			float r2s = sqrt(r2);
-
-			Vec w; vassign(w, nl);
-
-			Vec u, a;
-			if (fabs(w.x) > .1f) {
-				vinit(a, 0.f, 1.f, 0.f);
-			}
-			else {
-				vinit(a, 1.f, 0.f, 0.f);
-			}
-			vxcross(u, a, w);
-			vnorm(u);
-
-			Vec v;
-			vxcross(v, w, u);
-
-			Vec newDir;
-			vsmul(u, cos(r1) * r2s, u);
-			vsmul(v, sin(r1) * r2s, v);
-			vadd(newDir, u, v);
-			vsmul(w, sqrt(1 - r2), w);
-			vadd(newDir, newDir, w);
-
-			currentRay.o = hitPoint;
-			currentRay.d = newDir;
-			continue;
-		}
-		else if (refl == SPEC) { /* Ideal SPECULAR reflection */
-			specularBounce = 1;
-
-			Vec newDir;
-			vsmul(newDir, 2.f * vdot(normal, currentRay.d), normal);
-			vsub(newDir, currentRay.d, newDir);
-
-			vmul(throughput, throughput, col);
-
-			rinit(currentRay, hitPoint, newDir);
-			continue;
-		}
-		else {
-			specularBounce = 1;
-
-			Vec newDir;
-			vsmul(newDir, 2.f * vdot(normal, currentRay.d), normal);
-			vsub(newDir, currentRay.d, newDir);
-
-			Ray reflRay; rinit(reflRay, hitPoint, newDir); /* Ideal dielectric REFRACTION */
-			int into = (vdot(normal, nl) > 0); /* Ray from outside going in? */
-
-			float nc = 1.f;
-			float nt = 1.5f;
-			float nnt = into ? nc / nt : nt / nc;
-			float ddn = vdot(currentRay.d, nl);
-			float cos2t = 1.f - nnt * nnt * (1.f - ddn * ddn);
-
-			if (cos2t < 0.f) { /* Total internal reflection */
-				vmul(throughput, throughput, col);
-
-				rassign(currentRay, reflRay);
-				continue;
-			}
-
-			float kk = (into ? 1 : -1) * (ddn * nnt + sqrt(cos2t));
-			Vec nkk;
-			vsmul(nkk, kk, normal);
-			Vec transDir;
-			vsmul(transDir, nnt, currentRay.d);
-			vsub(transDir, transDir, nkk);
-			vnorm(transDir);
-
-			float a = nt - nc;
-			float b = nt + nc;
-			float R0 = a * a / (b * b);
-			float c = 1 - (into ? -ddn : vdot(transDir, normal));
-
-			float Re = R0 + (1 - R0) * c * c * c * c*c;
-			float Tr = 1.f - Re;
-			float P = .25f + .5f * Re;
-			float RP = Re / P;
-			float TP = Tr / (1.f - P);
-
-			if (GetRandom(seed0, seed1) < P) { /* R.R. */
-				vsmul(throughput, RP, throughput);
-				vmul(throughput, throughput, col);
-
-				rassign(currentRay, reflRay);
-				continue;
-			}
-			else {
-				vsmul(throughput, TP, throughput);
-				vmul(throughput, throughput, col);
-
-				rinit(currentRay, hitPoint, transDir);
-				continue;
-			}
 		}
 	}	
 }
@@ -586,20 +718,32 @@ void RadianceDirectLighting(
 #endif
 	const Poi *pois,
 	const unsigned int poiCnt,
+#if (ACCELSTR == 1)
 #ifdef GPU_KERNEL
 	__constant
 #endif
- 	TreeNode *tn, 
+	BVHTreeNode *btn,
 #ifdef GPU_KERNEL
 	__constant
 #endif
- 	TreeNode *tl, 	
+	BVHTreeNode *btl,
+#elif (ACCELSTR == 2)
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	KDNodeGPU *kng,
+#ifdef GPU_KERNEL
+	__constant
+#endif
+	int *kn,
+	int szkng, int szkn,
+#endif
 #ifdef GPU_KERNEL
 	__constant
 #endif
 	const Ray *startRay,
 	unsigned int *seed0, unsigned int *seed1,
-	Vec *result) {
+	Vec *result, KDTreeNode *node) {
 	Ray currentRay; rassign(currentRay, *startRay);
 	Vec rad; vinit(rad, 0.f, 0.f, 0.f);
 	Vec throughput; vinit(throughput, 1.f, 1.f, 1.f);
@@ -616,7 +760,11 @@ void RadianceDirectLighting(
 		float t; /* distance to intersection */
 		unsigned int id = 0; /* id of intersected object */
 		if (!Intersect(shapes, shapeCnt, pois, poiCnt, 
-			tn, tl,
+#if (ACCELSTR == 1)
+			btn, btl,
+#elif (ACCELSTR == 2)
+			kng, kn, szkng, szkn, 
+#endif
 			&currentRay, &t, &id)) {
 			*result = rad; /* if miss, return */
 			return;

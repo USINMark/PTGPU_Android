@@ -7,6 +7,7 @@ import android.opengl.GLSurfaceView;
 import android.opengl.GLSurfaceView.Renderer;
 import android.opengl.GLU;
 import android.opengl.GLUtils;
+import android.os.Environment;
 import android.util.Log;
 
 import java.io.FileOutputStream;
@@ -89,7 +90,7 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
         textureBuffer.put(texture);
         textureBuffer.position(0);
 
-        initSmallPtGPU(1, 128, "/mnt/sdcard/Download/kernels/preprocessed_rendering_kernel.cl", texW, texH, "/mnt/sdcard/Download/scenes/ant-mod.ply");
+        initSmallPtGPU(1, 128, Environment.getExternalStorageDirectory()+"/Download/kernels/preprocessed_rendering_kernel.cl", texW, texH, Environment.getExternalStorageDirectory()+"/Download/scenes/ant.ply");
 
         try {
             gl.glEnable(GL10.GL_TEXTURE_2D);                    //Enable Texture Mapping
@@ -119,7 +120,7 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
         Bitmap bitmap = Bitmap.createBitmap(arr_pixels, texW, texH, Bitmap.Config.ARGB_8888);
 
         if (bFile) {
-            String strFN = "/mnt/sdcard/Download/images/image_" + new Integer(inv).toString() + ".png";
+            String strFN = Environment.getExternalStorageDirectory()+"/Download/images/image_" + new Integer(inv).toString() + ".png";
             FileOutputStream out = null;
 
             try {
@@ -179,7 +180,8 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
             // TODO Auto-generated catch block
             Log.e("Excption at the onDrawFrame",e.getMessage());
         }
-        Log.i("PTGPURenderer", "End of onDrawFrame");
+
+        Log.i("PTGPURenderer", "End of onDrawFrame, "+String.valueOf(inv));
         inv++;
     }
 

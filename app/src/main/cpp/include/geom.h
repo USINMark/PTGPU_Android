@@ -29,6 +29,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define EPSILON 0.01f
 #define FLOAT_PI 3.14159265358979323846f
 
+#define MAX_DEPTH 6
+#define MAX_SPP 6
+
+#define ACCELSTR 2 //0 is no accel, 1 is BVH and 2 is KDTREE
+//#define EXP_KERNEL
+//#define CPU_PARTRENDERING
+//#define DEBUG_INTERSECTIONS
+
 typedef struct {
 	Vec o, d;
 } Ray;

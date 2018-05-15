@@ -1,9 +1,15 @@
 
 #include "clheader.h"
 
+#define MAX_DEPTH 6
+#define MAX_SPP 5
+
 #define ACCELSTR 2 //0 is no accel, 1 is BVH and 2 is KDTREE
+#define CPU_PARTRENDERING
+//#define DEBUG_INTERSECTIONS
 
 # 1 "<stdin>"
+
 # 1 "<built-in>"
 # 1 "<command-line>"
 # 1 "<stdin>"
@@ -35,7 +41,7 @@ inline float max2(float a, float b) {
 	return fmax(a, b);
 }
 
-inline float GetRandom(unsigned int *seed0, unsigned int *seed1) {
+inline float GetRandom(__global unsigned int *seed0, __global unsigned int *seed1) {
  *seed0 = 36969 * ((*seed0) & 65535) + ((*seed0) >> 16);
  *seed1 = 18000 * ((*seed1) & 65535) + ((*seed1) >> 16);
 
@@ -63,7 +69,7 @@ float SphereIntersect(
 __global
 
  Sphere *s,
- const Ray *r) {
+ Ray *r) {
  Vec op;
  { (op).x = (s->p).x - (r->o).x; (op).y = (s->p).y - (r->o).y; (op).z = (s->p).z - (r->o).z; };
  
@@ -98,7 +104,7 @@ __constant
 
 	Poi *pois,
 	const unsigned int poiCnt,
-	const Ray *r) { 
+	Ray *r) { 
 	/* returns distance, 0 if nohit */
 	Vec v0 = pois[tr->p1].p, v1 = pois[tr->p2].p, v2 = pois[tr->p3].p, e1, e2, tvec, pvec, qvec;
 	float t = 0.0f, u, v;
@@ -234,10 +240,10 @@ __constant
  Poi *pois,
  const unsigned int poiCnt,
 #if (ACCELSTR == 1)
-__global
+__constant
 
  BVHTreeNode *btn, 
-__global
+__constant
 
  BVHTreeNode *btl, 
 #elif (ACCELSTR == 2)
@@ -249,7 +255,7 @@ __constant
  int *kn, 
  int szkng, int szkn, 
 #endif
- const Ray *r,
+ Ray *r,
  float *t,
  unsigned int *id
 #ifdef DEBUG_INTERSECTIONS
@@ -270,11 +276,7 @@ __constant
 			*id = i;
 		}
 	}
-#ifdef DEBUG_INTERSECTIONS
-	debug1[get_global_id(0)] = *id;
 
-	debug2[get_global_id(0)] = *t;
-#endif
 	return (*t < inf);
 #elif (ACCELSTR == 1)
 	(*t) = 1e20f;
@@ -352,15 +354,8 @@ __constant
 	// Do while stack is not empty
 	while (topIndex != INTERSECT_STACK_SIZE) {
 		int n = stack[topIndex++];
-#ifdef DEBUG_INTERSECTIONS
-        atomic_add(&debug1[n], 1);
-#endif
 
-		if (intersection_bound_test(*r, kng[n].bound
-#ifdef DEBUG_INTERSECTIONS
-			, debug2
-#endif
-		)) {
+		if (intersection_bound_test(*r, kng[n].bound)) {
 			if (kng[n].leaf == 0) {
 				stack[--topIndex] = kng[n].nRight;
 				stack[--topIndex] = kng[n].nLeft;
@@ -398,11 +393,11 @@ __constant
 
 int IntersectP(
 
-__global 
+__global
 
  Shape *shapes,
  const unsigned int shapeCnt,
- const Ray *r,
+ Ray *r,
  const float maxt) {
  unsigned int i = shapeCnt;
  for (; i--;) {
@@ -421,7 +416,7 @@ __global
 
  Shape *shapes,
  const unsigned int shapeCnt,
- unsigned int *seed0, unsigned int *seed1,
+ __global unsigned int *seed0, __global unsigned int *seed1,
  const Vec *hitPoint,
  const Vec *normal,
  Vec *result) {
@@ -481,10 +476,10 @@ __constant
  Poi *pois,
  const unsigned int poiCnt,
 #if (ACCELSTR == 1)
-__global
+__constant
 
  BVHTreeNode *btn, 
-__global
+__constant
 
  BVHTreeNode *btl, 
 #elif (ACCELSTR == 2)
@@ -497,9 +492,8 @@ __constant
  int szkng, int szkn, 
 #endif
  Ray *currentRay,
- unsigned int *seed0, unsigned int *seed1, 
- int depth, Vec *rad, Vec *throughput, int *specularBounce, int *terminated, 
- Vec *result
+ __global unsigned int *seed0, __global unsigned int *seed1, 
+ Vec *throughput, int *specularBounce, int *terminated, Vec *result
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
  __global float *debug2
@@ -519,7 +513,6 @@ __constant
   , debug1, debug2
 #endif
   )) {
-   *result = *rad;
    *terminated = 1;
    
    return;
@@ -578,10 +571,9 @@ __constant
    if (*specularBounce) {
     { float k = (fabs(dp)); { (eCol).x = k * (eCol).x; (eCol).y = k * (eCol).y; (eCol).z = k * (eCol).z; } };
     { (eCol).x = (*throughput).x * (eCol).x; (eCol).y = (*throughput).y * (eCol).y; (eCol).z = (*throughput).z * (eCol).z; };
-    { (rad)->x = (rad)->x + (eCol).x; (rad)->y = (rad)->y + (eCol).y; (rad)->z = (rad)->z + (eCol).z; };
+    { (result)->x = (result)->x + (eCol).x; (result)->y = (result)->y + (eCol).y; (result)->z = (result)->z + (eCol).z; };
    }
 
-   *result = *rad;
    *terminated = 1;
    
    return;
@@ -594,7 +586,7 @@ __constant
    Vec Ld;
    SampleLights(shapes, shapeCnt, seed0, seed1, &hitPoint, &nl, &Ld);
    { (Ld).x = (throughput)->x * (Ld).x; (Ld).y = (throughput)->y * (Ld).y; (Ld).z = (throughput)->z * (Ld).z; };
-   { (rad)->x = (rad)->x + (Ld).x; (rad)->y = (rad)->y + (Ld).y; (rad)->z = (rad)->z + (Ld).z; };
+   { (result)->x = (result)->x + (Ld).x; (result)->y = (result)->y + (Ld).y; (result)->z = (result)->z + (Ld).z; };
 
    float r1 = 2.f * 3.14159265358979323846f * GetRandom(seed0, seed1);
    float r2 = GetRandom(seed0, seed1);
@@ -698,22 +690,23 @@ __constant
  }
 }
 
-void RadiancePathTracing(
+__kernel void RadiancePathTracing_exp(
 
 __global
 
- Shape *shapes,
+ const Shape *shapes,
  const unsigned int shapeCnt,
  
 __constant
 
  Poi *pois,
  const unsigned int poiCnt,
+ __global unsigned int *seedsInput,
 #if (ACCELSTR == 1)
-__global
+__constant
 
  BVHTreeNode *btn, 
-__global
+__constant
 
  BVHTreeNode *btl, 
 #elif (ACCELSTR == 2)
@@ -725,50 +718,48 @@ __constant
  int *kn, 
  int szkng, int szkn, 
 #endif
- const Ray *startRay,
- unsigned int *seed0, unsigned int *seed1,
- Vec *result
+  const int width, const int height, 
+ __global Ray *ray, 
+ __global Vec *throughput, __global int *specularBounce, __global int *terminated, __global Vec *result
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
  __global float *debug2
 #endif
- ) {
- Ray currentRay; { { ((currentRay).o).x = ((*startRay).o).x; ((currentRay).o).y = ((*startRay).o).y; ((currentRay).o).z = ((*startRay).o).z; }; { ((currentRay).d).x = ((*startRay).d).x; ((currentRay).d).y = ((*startRay).d).y; ((currentRay).d).z = ((*startRay).d).z; }; };
- Vec rad; { (rad).x = 0.f; (rad).y = 0.f; (rad).z = 0.f; };
- Vec throughput; { (throughput).x = 1.f; (throughput).y = 1.f; (throughput).z = 1.f; };
-
- unsigned int depth = 0;
- int specularBounce = 1;
- int terminated = 0;
+ ) { 
+ const int gid = get_global_id(0);
+	
+ const int x = gid % width;
+ const int y = gid / width;
  
- for (;; ++depth) {  
-  if (depth > 6) {
-   *result = rad;
-   return;
-  }
+ const int sgid2 = gid << 1;
+ 
+ Vec thr = throughput[gid];
+ int sb = specularBounce[gid];
+ Ray r = ray[gid];
+ int ter = terminated[gid];
+ Vec res = result[gid];
 
-	RadianceOnePathTracing(shapes, shapeCnt, pois, poiCnt, 
+ if (terminated[gid] != 1)
+ {
+	 RadianceOnePathTracing(shapes, shapeCnt, pois, poiCnt, 
 #if (ACCELSTR == 1)
-		btn, btl, 
+			btn, btl, 
 #elif (ACCELSTR == 2)
-		kng, kn, szkng, szkn, 
+			kng, kn, szkng, szkn, 
 #endif
-		&currentRay, seed0, seed1, depth, &rad, &throughput, &specularBounce, &terminated, result
-#ifdef DEBUG_INTERSECTIONS
-		, debug1, debug2
-#endif
-);
-
-	if (terminated == 1) {
-		*result = rad;
-		return;
-	}
+			&r, &seedsInput[sgid2], &seedsInput[sgid2+1], &thr, &sb, &ter, &res);
  }
+ 
+ result[gid] = res;
+ terminated[gid] = ter;
+ ray[gid] = r;  
+ specularBounce[gid] = sb;
+ throughput[gid] = thr;
 }
 
 void RadianceDirectLighting(
 
-__global
+__global 
 
  Shape *shapes,
  const unsigned int shapeCnt,
@@ -778,10 +769,10 @@ __constant
  Poi *pois,
  const unsigned int poiCnt,
 #if (ACCELSTR == 1)
-__global
+__constant
 
  BVHTreeNode *btn, 
-__global
+__constant
 
  BVHTreeNode *btl, 
 #elif (ACCELSTR == 2)
@@ -794,7 +785,7 @@ __constant
  int szkng, int szkn, 
 #endif
  const Ray *startRay,
- unsigned int *seed0, unsigned int *seed1,
+ __global unsigned int *seed0, __global unsigned int *seed1,
  Vec *result
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
@@ -945,17 +936,33 @@ __global
 }
 # 28 "<stdin>" 2
 
-void GenerateCameraRay(
- __constant  Camera *camera,
-  unsigned int *seed0, unsigned int *seed1,
-  const int width, const int height, const int x, const int y, Ray *ray) {
+__kernel void GenerateCameraRay_exp(
+  __constant Camera *camera,
+  __global unsigned int *seedsInput,
+  const int width, const int height, 
+  __global Ray *ray, 
+  __global Vec *throughput, __global int *specularBounce, __global int *terminated, __global Vec *result) {
+ const int gid = get_global_id(0);
+
+ const int x = gid % width;
+ const int y = gid / width;
+
+ const int sgid = (y - 1) * width + x;
+ const int sgid2 = sgid << 1;
+   
  const float invWidth = 1.f / width;
  const float invHeight = 1.f / height;
- const float r1 = GetRandom(seed0, seed1) - .5f;
- const float r2 = GetRandom(seed0, seed1) - .5f;
+ 
+ const float r1 = GetRandom(&seedsInput[sgid2], &seedsInput[sgid2 + 1]) - .5f;
+ const float r2 = GetRandom(&seedsInput[sgid2], &seedsInput[sgid2 + 1]) - .5f;
  const float kcx = (x + r1) * invWidth - .5f;
  const float kcy = (y + r2) * invHeight - .5f;
 
+ throughput[gid].x = throughput[gid].y = throughput[gid].z = 1.f;
+ specularBounce[gid] = 1;
+ terminated[gid] = 0;
+ result[gid].x = result[gid].y = result[gid].z = 0.f;
+ 
  Vec rdir;
  { (rdir).x = camera->x.x * kcx + camera->y.x * kcy + camera->dir.x; (rdir).y = camera->x.y * kcx + camera->y.y * kcy + camera->dir.y; (rdir).z = camera->x.z * kcx + camera->y.z * kcy + camera->dir.z; };
 
@@ -964,157 +971,41 @@ void GenerateCameraRay(
  { (rorig).x = (rorig).x + (camera->orig).x; (rorig).y = (rorig).y + (camera->orig).y; (rorig).z = (rorig).z + (camera->orig).z; }
 
  { float l = 1.f / sqrt(((rdir).x * (rdir).x + (rdir).y * (rdir).y + (rdir).z * (rdir).z)); { float k = (l); { (rdir).x = k * (rdir).x; (rdir).y = k * (rdir).y; (rdir).z = k * (rdir).z; } }; };
- { { ((*ray).o).x = (rorig).x; ((*ray).o).y = (rorig).y; ((*ray).o).z = (rorig).z; }; { ((*ray).d).x = (rdir).x; ((*ray).d).y = (rdir).y; ((*ray).d).z = (rdir).z; }; };
-}
-
-__kernel void RadianceGPU(
-    __global Vec *colors, __global unsigned int *seedsInput,
- __global Shape *shapes, 
- __constant Camera *camera,
- const unsigned int shapeCnt,
- __constant Poi *pois,
- const unsigned int poiCnt,
-#if (ACCELSTR == 1)
- __global BVHTreeNode *btn, 
- __global BVHTreeNode *btl, 
-#elif (ACCELSTR == 2)
-__global
  
- KDNodeGPU *kng, 
-__constant
-
- int *kn, 
-#endif
- const int width, const int height,
- const int currentSample,
- __global int *pixels
-#ifdef DEBUG_INTERSECTIONS
- , __global int *debug1,
- __global float *debug2
-#endif 
-#if (ACCELSTR == 2)
- , int szkng, int szkn
-#endif
- ) {
-    const int gid = get_global_id(0);
- const int gid2 = gid << 1;
- const int x = gid % width;
- const int y = gid / width;
-
- if (y >= height)
-  return;
-
- unsigned int seed0 = seedsInput[gid2];
- unsigned int seed1 = seedsInput[gid2 + 1];
-
- Ray ray;
- GenerateCameraRay(camera, &seed0, &seed1, width, height, x, y, &ray);
-
- Vec r;
- RadiancePathTracing(shapes, shapeCnt, pois, poiCnt, 
-#if (ACCELSTR == 1)
- btn, btl, 
-#elif (ACCELSTR == 2)
- kng, kn, szkng, szkn, 
-#endif
- &ray, &seed0, &seed1, &r
-#ifdef DEBUG_INTERSECTIONS
- , debug1, debug2
-#endif
- );
-
- const int i = (height - y - 1) * width + x;
- if (currentSample == 0) {
-  { (colors[i]).x = (r).x; (colors[i]).y = (r).y; (colors[i]).z = (r).z; };
- } else {
-  const float k1 = currentSample;
-  const float k2 = 1.f / (currentSample + 1.f);
-  colors[i].x = (colors[i].x * k1 + r.x) * k2;
-  colors[i].y = (colors[i].y * k1 + r.y) * k2;
-  colors[i].z = (colors[i].z * k1 + r.z) * k2;
- }
-
- pixels[y * width + x] = ((int)(pow(clamp(colors[i].x, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) |
-   (((int)(pow(clamp(colors[i].y, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) << 8) |
-   (((int)(pow(clamp(colors[i].z, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) << 16) | 0xff000000;
-
- seedsInput[gid2] = seed0;
- seedsInput[gid2 + 1] = seed1;
+ { { (ray[gid].o).x = (rorig).x; (ray[gid].o).y = (rorig).y; (ray[gid].o).z = (rorig).z; }; 
+ { (ray[gid].d).x = (rdir).x; (ray[gid].d).y = (rdir).y; (ray[gid].d).z = (rdir).z; }; };
 }
 
-__kernel void RadianceBoxGPU(
-    __global Vec *colors, __global unsigned int *seedsInput,
- __global Shape *shapes, 
- __constant Camera *camera,
- const unsigned int shapeCnt,
- __constant Poi *pois,
- const unsigned int poiCnt,
-#if (ACCELSTR == 1)
- __global BVHTreeNode *btn, 
- __global BVHTreeNode *btl, 
-#elif (ACCELSTR == 2)
- __global KDNodeGPU *kng,
- __constant int *kn, 
-#endif
- const int x, const int y,
- const int bwidth, const int bheight,
- const int twidth, const int theight,
- const int currentSample,
+__kernel void FillPixel_exp(
+    __global Vec *colors, __global Vec *results, 
+ const int width, const int height,
+   const int currentSample,
  __global int *pixels
-#ifdef DEBUG_INTERSECTIONS
- , __global int *debug1,
- __global float *debug2
-#endif 
-#if (ACCELSTR == 2)
- , int szkngbuf, int szknbuf
-#endif
  ) {
     const int gid = get_global_id(0);
 	
- const int xwithinbox = gid % bwidth;
- const int ywithinbox = gid / bwidth;
+ const int x = gid % width;
+ const int y = gid / width;
  
- const int sgid = (y + ywithinbox - 1) * twidth + (x + xwithinbox);
+ const int sgid = (y - 1) * width + x;
  const int sgid2 = sgid << 1;
  
- if (y + ywithinbox >= theight)
-  return;
-  
- unsigned int seed0 = seedsInput[sgid2];
- unsigned int seed1 = seedsInput[sgid2 + 1];
-
- Ray ray;
- GenerateCameraRay(camera, &seed0, &seed1, twidth, theight, x + xwithinbox, y + ywithinbox, &ray);
-
- Vec r;
- RadiancePathTracing(shapes, shapeCnt, pois, poiCnt, 
-#if (ACCELSTR == 1)
- btn, btl, 
-#elif (ACCELSTR == 2)
- kng, kn, szkngbuf, szknbuf, 
-#endif
- &ray, &seed0, &seed1, &r
-#ifdef DEBUG_INTERSECTIONS
- , debug1, debug2
-#endif
- );
-
- const int i = (theight - y - ywithinbox - 1) * twidth + x + xwithinbox;
+ if (y >= height)
+  return;  
+ 
+ const int i = (y - 1) * width + x;
+ 
  if (currentSample == 0) {
-
-  { (colors[i]).x = (r).x; (colors[i]).y = (r).y; (colors[i]).z = (r).z; };
+  { (colors[i]).x = (results[i]).x; (colors[i]).y = (results[i]).y; (colors[i]).z = (results[i]).z; };
  } else {
   const float k1 = currentSample;
   const float k2 = 1.f / (currentSample + 1.f);
-  colors[i].x = (colors[i].x * k1 + r.x) * k2;
-  colors[i].y = (colors[i].y * k1 + r.y) * k2;
-  colors[i].z = (colors[i].z * k1 + r.z) * k2;
+  colors[i].x = (colors[i].x * k1 + results[i].x) * k2;
+  colors[i].y = (colors[i].y * k1 + results[i].y) * k2;
+  colors[i].z = (colors[i].z * k1 + results[i].z) * k2;
  }
 
- pixels[(y + ywithinbox) * twidth + x + xwithinbox] = ((int)(pow(clamp(colors[i].x, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) |
+ pixels[gid] = ((int)(pow(clamp(colors[i].x, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) |
    (((int)(pow(clamp(colors[i].y, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) << 8) |
    (((int)(pow(clamp(colors[i].z, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) << 16) | 0xff000000;
-
- seedsInput[sgid2] = seed0;
- seedsInput[sgid2 + 1] = seed1;
 }

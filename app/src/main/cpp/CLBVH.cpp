@@ -1,13 +1,11 @@
 
-//#include "stdafx.h"
-#include "CLBVH.h"
-#include <memory.h>
+#include "include/CLBVH.h"
 
 #define BLOCK_SIZE 256
 
 #define CODE_OFFSET (1<<10)
 #define CODE_LENGTH (10)
-//#define DEBUG_TREE 
+//#define DEBUG_TREE
 
 #define clErrchk(ans) { clAssert((ans), __FILE__, __LINE__); }
 
@@ -62,15 +60,15 @@ int *CLBVH::bubblesort_Geometry(Geometry *geo)
 {
 	int *sorted_geometry_indices = new int[m_shapeCnt];
 
-	for (int level = 0; level < m_shapeCnt - 1; level++)
+	for (unsigned int level = 0; level < m_shapeCnt - 1; level++)
 	{
-		for (int i = 0; i < m_shapeCnt - level - 1; i++)
+		for (unsigned int i = 0; i < m_shapeCnt - level - 1; i++)
 		{
 			if (geo[i].key_mc < geo[i + 1].key_mc) swapGeometry(&geo[i], &geo[i + 1]);
 		}		
 	}
 
-	for (int i = 0; i < m_shapeCnt; i++)
+	for (unsigned int i = 0; i < m_shapeCnt; i++)
 		sorted_geometry_indices[i] = geo[i].value;
 
 	return sorted_geometry_indices;
@@ -110,12 +108,12 @@ Bound CLBVH::getBound(Triangle t)
 CLBVH::CLBVH(Shape *shapes, int shapeCnt, Poi *pois, int poiCnt, cl_command_queue cq, cl_context ctx, cl_kernel kRad, cl_kernel kBvh, cl_kernel kOpt) : m_shapes(shapes), m_shapeCnt(shapeCnt), m_pois(pois), m_poiCnt(poiCnt), m_cq(cq), m_ctx(ctx), m_kRad(kRad), m_kBvh(kBvh), m_kOpt(kOpt)
 {
 	// For internal nodes, leaf = false
-	tn = (TreeNode *)malloc(sizeof(TreeNode) * (shapeCnt - 1));
-	memset(tn, 0, sizeof(TreeNode) * (shapeCnt - 1));
+	btn = (BVHTreeNode *)malloc(sizeof(BVHTreeNode) * (shapeCnt - 1));
+	memset(btn, 0, sizeof(BVHTreeNode) * (shapeCnt - 1));
 
 	// For leaves, leaf = true
-	tl = (TreeNode *)malloc(sizeof(TreeNode) * shapeCnt);
-	memset(tl, ~0, sizeof(TreeNode) * shapeCnt);
+	btl = (BVHTreeNode *)malloc(sizeof(BVHTreeNode) * shapeCnt);
+	memset(btl, ~0, sizeof(BVHTreeNode) * shapeCnt);
 
 	// Initialize morton codes
 	float min_x = FLT_MAX;
@@ -128,6 +126,7 @@ CLBVH::CLBVH(Shape *shapes, int shapeCnt, Poi *pois, int poiCnt, cl_command_queu
 	for (unsigned int i = 0; i < m_shapeCnt; i++)
 	{
 		Vec p;
+
 		m_shapes[i].index = i;
 		if (m_shapes[i].type == SPHERE)
 		{
@@ -173,7 +172,7 @@ CLBVH::CLBVH(Shape *shapes, int shapeCnt, Poi *pois, int poiCnt, cl_command_queu
 			float max_y = max3(m_pois[m_shapes[i].t.p1].p.y, m_pois[m_shapes[i].t.p2].p.y, m_pois[m_shapes[i].t.p3].p.y);
 			float max_z = max3(m_pois[m_shapes[i].t.p1].p.z, m_pois[m_shapes[i].t.p2].p.z, m_pois[m_shapes[i].t.p3].p.z);
 
-			p.x = (min_x + max_x) / 2.0f;// (m_pois[m_shapes[i].t.p1].p.x + m_pois[m_shapes[i].t.p2].p.x + m_pois[m_shapes[i].t.p3].p.x) / 3.0f;
+			p.x = (min_x + max_x) / 2.0f;//(m_pois[m_shapes[i].t.p1].p.x + m_pois[m_shapes[i].t.p2].p.x + m_pois[m_shapes[i].t.p3].p.x) / 3.0f;
 			p.y = (min_y + max_y) / 2.0f;//(m_pois[m_shapes[i].t.p1].p.y + m_pois[m_shapes[i].t.p2].p.y + m_pois[m_shapes[i].t.p3].p.y) / 3.0f;
 			p.z = (min_z + max_z) / 2.0f;//(m_pois[m_shapes[i].t.p1].p.z + m_pois[m_shapes[i].t.p2].p.z + m_pois[m_shapes[i].t.p3].p.z) / 3.0f;
 		}
@@ -194,83 +193,19 @@ CLBVH::CLBVH(Shape *shapes, int shapeCnt, Poi *pois, int poiCnt, cl_command_queu
 
 	cl_int status;
 	
-	m_nBuf = clCreateBuffer(
-		m_ctx,
-		CL_MEM_READ_WRITE,
-		sizeof(TreeNode) * (shapeCnt - 1),
-		NULL,
-		&status);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to create OpenCL node buffer: %d\n", status);
-		return;
-	}
+	m_nBuf = clCreateBuffer(m_ctx, CL_MEM_READ_WRITE, sizeof(BVHTreeNode) * (shapeCnt - 1), NULL, &status);
+	clErrchk(status);	
 
-	m_lBuf = clCreateBuffer(
-		m_ctx,
-		CL_MEM_READ_WRITE,
-		sizeof(TreeNode) * (shapeCnt),
-		NULL,
-		&status);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to create OpenCL leaf buffer: %d\n", status);
-		return;
-	}
+	m_lBuf = clCreateBuffer(m_ctx, CL_MEM_READ_WRITE, sizeof(BVHTreeNode) * (shapeCnt), NULL, &status);
+	clErrchk(status);
 
-	m_shBuf = clCreateBuffer(
-		m_ctx,
-		CL_MEM_READ_ONLY,
-		sizeof(Shape) * (shapeCnt),
-		NULL,
-		&status);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to create OpenCL shape buffer: %d\n", status);
-		return;
-	}
+	m_shBuf = clCreateBuffer(m_ctx, CL_MEM_READ_ONLY, sizeof(Shape) * (shapeCnt), NULL, &status);
+	clErrchk(status);
 
-	status = clEnqueueWriteBuffer(
-		m_cq,
-		m_nBuf,
-		CL_TRUE,
-		0,
-		sizeof(TreeNode) * (shapeCnt - 1),
-		tn,
-		0,
-		NULL,
-		NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to write the OpenCL node buffer: %d\n", status);
-		return;
-	}
-
-	status = clEnqueueWriteBuffer(
-		m_cq,
-		m_lBuf,
-		CL_TRUE,
-		0,
-		sizeof(TreeNode) * (shapeCnt),
-		tl,
-		0,
-		NULL,
-		NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to write the OpenCL leaf buffer: %d\n", status);
-		return;
-	}
-
-	status = clEnqueueWriteBuffer(
-		m_cq,
-		m_shBuf,
-		CL_TRUE,
-		0,
-		sizeof(Shape) * (m_shapeCnt),
-		m_shapes,
-		0,
-		NULL,
-		NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to write the OpenCL shape buffer: %d\n", status);
-		return;
-	}
+	clErrchk(clEnqueueWriteBuffer(m_cq, m_nBuf, CL_TRUE, 0, sizeof(BVHTreeNode) * (shapeCnt - 1), btn, 0, NULL, NULL));
+	clErrchk(clEnqueueWriteBuffer(m_cq, m_lBuf, CL_TRUE, 0, sizeof(BVHTreeNode) * (shapeCnt), btl, 0, NULL, NULL));
+	
+	clErrchk(clEnqueueWriteBuffer(m_cq, m_shBuf, CL_TRUE, 0, sizeof(Shape) * (m_shapeCnt), m_shapes, 0, NULL, NULL));
 }
 
 /**
@@ -278,16 +213,19 @@ CLBVH::CLBVH(Shape *shapes, int shapeCnt, Poi *pois, int poiCnt, cl_command_queu
 */
 CLBVH::~CLBVH()
 {
-	if (m_shBuf)
-		clReleaseMemObject(m_shBuf);
-	if (m_lBuf)
-		clReleaseMemObject(m_lBuf);
-	if (m_nBuf)
-		clReleaseMemObject(m_nBuf);
-	if (tn)
-		free(tn);
-	if (tl)
-		free(tl);
+	if (m_shBuf) {
+		clErrchk(clReleaseMemObject(m_shBuf));
+	}
+	if (m_lBuf) {
+		clErrchk(clReleaseMemObject(m_lBuf));
+	}
+	if (m_nBuf) {
+		clErrchk(clReleaseMemObject(m_nBuf));
+	}
+	if (btn)
+		free(btn);
+	if (btl)
+		free(btl);
 }
 /**
 * CLBVH::buildRadixTree
@@ -305,61 +243,25 @@ void CLBVH::buildRadixTree()
 	globalThreads[0] = ((internalNodes + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
 	localThreads[0] = BLOCK_SIZE;
 
+	int index = 0;
+
 	/* Set kernel arguments */
-	cl_int status = clSetKernelArg(m_kRad, 0, sizeof(int), &internalNodes);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #0: %d\n", status);
-		return ;
-	}
-
-	status = clSetKernelArg(
-		m_kRad,
-		1,
-		sizeof(cl_mem),
-		(void *)&m_nBuf);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #1: %d\n", status);
-		return ;
-	}
-
-	status = clSetKernelArg(
-		m_kRad,
-		2,
-		sizeof(cl_mem),
-		(void *)&m_lBuf);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #2: %d\n", status);
-		return ;
-	}
-
-	status = clEnqueueNDRangeKernel(
-		m_cq,
-		m_kRad,
-		1,
-		NULL,
-		globalThreads,
-		localThreads,
-		0,
-		NULL,
-		NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to enqueue OpenCL work: %d\n", status);
-		return;
-	}
+	clErrchk(clSetKernelArg(m_kRad, index++, sizeof(int), &internalNodes));
+	clErrchk(clSetKernelArg(m_kRad, index++, sizeof(cl_mem), (void *)&m_nBuf));
+	clErrchk(clSetKernelArg(m_kRad, index++, sizeof(cl_mem), (void *)&m_lBuf));
 	
+	clErrchk(clEnqueueNDRangeKernel(m_cq, m_kRad, 1, NULL, globalThreads, localThreads, 0, NULL, NULL));
 #ifdef DEBUG_TREE
 	clFinish(m_cq);
 
-	status = clEnqueueReadBuffer(m_cq, m_nBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt - 1), dtn, 0, NULL, NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to read the OpenCL node buffer: %d\n", status);
-		return;
+	clErrchk(clEnqueueReadBuffer(m_cq, m_nBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt - 1), tn, 0, NULL, NULL));
+	clErrchk(clEnqueueReadBuffer(m_cq, m_lBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt), tl, 0, NULL, NULL));
+	
+	FILE *f = fopen("images\\RadixTree.txt", "wt"); // Write image to PPM file.
+	for (int i = 0; i < m_shapeCnt - 1; i++) {
+		fprintf(f, "Parent (%d), Left (%d), Right (%d), Leaf (%d), Min (%d), Max (%d)\n", tn[i].nParent, tn[i].nLeft, tn[i].nRight, tn[i].leaf, tn[i].min, tn[i].max);
 	}
-	status = clEnqueueReadBuffer(m_cq, m_lBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt), dtl, 0, NULL, NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to read the OpenCL leaf buffer: %d\n", status);
-		return;
-	}
+	fclose(f);
 #endif
 }
 
@@ -386,58 +288,16 @@ void CLBVH::buildBVHTree()
 
 	cl_int status;
 
-	cl_mem ncBuf = clCreateBuffer(
-		m_ctx,
-		CL_MEM_READ_WRITE,
-		sizeof(int) * (m_shapeCnt),
-		NULL,
-		&status);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to create OpenCL nodeCounter buffer: %d\n", status);
-		return;
-	}
+	cl_mem ncBuf = clCreateBuffer(m_ctx, CL_MEM_READ_WRITE, sizeof(int) * (m_shapeCnt), NULL, &status);
+	clErrchk(status);
 
-	status = clEnqueueWriteBuffer(
-		m_cq,
-		ncBuf,
-		CL_TRUE,
-		0,
-		sizeof(int) * (m_shapeCnt),
-		nodeCounter,
-		0,
-		NULL,
-		NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to write the OpenCL nodeCounter buffer: %d\n", status);
-		return;
-	}
+	clErrchk(clEnqueueWriteBuffer(m_cq, ncBuf, CL_TRUE, 0, sizeof(int) * (m_shapeCnt), nodeCounter, 0, NULL, NULL));
+	
+	cl_mem sgBuf = clCreateBuffer(m_ctx, CL_MEM_READ_ONLY, sizeof(int) * (m_shapeCnt), NULL, &status);
+	clErrchk(status);
 
-	cl_mem sgBuf = clCreateBuffer(
-		m_ctx,
-		CL_MEM_READ_ONLY,
-		sizeof(int) * (m_shapeCnt),
-		NULL,
-		&status);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to create OpenCL sorted_geometry_indices buffer: %d\n", status);
-		return;
-	}
-
-	status = clEnqueueWriteBuffer(
-		m_cq,
-		sgBuf,
-		CL_TRUE,
-		0,
-		sizeof(int) * (m_shapeCnt),
-		sorted_geometry_indices,
-		0,
-		NULL,
-		NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to write the OpenCL sorted_geometry_indices buffer: %d\n", status);
-		return;
-	}
-
+	clErrchk(clEnqueueWriteBuffer(m_cq, sgBuf, CL_TRUE, 0, sizeof(int) * (m_shapeCnt), sorted_geometry_indices, 0, NULL, NULL));
+	
 	size_t globalThreads[1];
 	size_t localThreads[1];
 
@@ -445,100 +305,32 @@ void CLBVH::buildBVHTree()
 	globalThreads[0] = ((m_shapeCnt + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
 	localThreads[0] = BLOCK_SIZE;
 
+	int index = 0;
 	/* Set kernel arguments */
-	status = clSetKernelArg(m_kBvh, 0, sizeof(int), &m_shapeCnt);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #0: %d\n", status);
-		return;
-	}
-
-	status = clSetKernelArg(
-		m_kBvh,
-		1,
-		sizeof(cl_mem),
-		(void *)&m_nBuf);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #1: %d\n", status);
-		return;
-	}
-
-	status = clSetKernelArg(
-		m_kBvh,
-		2,
-		sizeof(cl_mem),
-		(void *)&m_lBuf);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #2: %d\n", status);
-		return;
-	}
-
-	status = clSetKernelArg(
-		m_kBvh,
-		3,
-		sizeof(cl_mem),
-		(void *)&ncBuf);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #3: %d\n", status);
-		return;
-	}
-
-	status = clSetKernelArg(
-		m_kBvh,
-		4,
-		sizeof(cl_mem),
-		(void *)&sgBuf);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #4: %d\n", status);
-		return;
-	}
-
-	status = clSetKernelArg(
-		m_kBvh,
-		5,
-		sizeof(cl_mem),
-		(void *)&m_shBuf);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #5: %d\n", status);
-		return;
-	}
-
-	status = clEnqueueNDRangeKernel(
-		m_cq,
-		m_kBvh,
-		1,
-		NULL,
-		globalThreads,
-		localThreads,
-		0,
-		NULL,
-		NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to enqueue OpenCL work: %d\n", status);
-		return;
-	}
-
-	clFinish(m_cq);
+	clErrchk(clSetKernelArg(m_kBvh, index++, sizeof(int), &m_shapeCnt));
+	clErrchk(clSetKernelArg(m_kBvh, index++, sizeof(cl_mem), (void *)&m_nBuf));
+	clErrchk(clSetKernelArg(m_kBvh, index++, sizeof(cl_mem), (void *)&m_lBuf));
+	clErrchk(clSetKernelArg(m_kBvh, index++, sizeof(cl_mem), (void *)&ncBuf));
+	clErrchk(clSetKernelArg(m_kBvh, index++, sizeof(cl_mem), (void *)&sgBuf));
+	clErrchk(clSetKernelArg(m_kBvh, index++, sizeof(cl_mem), (void *)&m_shBuf));
+	
+	clErrchk(clEnqueueNDRangeKernel(m_cq, m_kBvh, 1, NULL, globalThreads, localThreads, 0, NULL, NULL));	
 #ifdef DEBUG_TREE
 	clFinish(m_cq);
 
-	status = clEnqueueReadBuffer(m_cq, m_nBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt - 1), dtn, 0, NULL, NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to read the OpenCL node buffer: %d\n", status);
-		return;
+	clErrchk(clEnqueueReadBuffer(m_cq, m_nBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt - 1), tn, 0, NULL, NULL));	
+	clErrchk(clEnqueueReadBuffer(m_cq, m_lBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt), tl, 0, NULL, NULL));	
+	clErrchk(clEnqueueReadBuffer(m_cq, ncBuf, CL_TRUE, 0, sizeof(int) * (m_shapeCnt), nodeCounter, 0, NULL, NULL));	
+
+	FILE *f = fopen("/storage/emulated/0/Download/images/BVHTree.txt", "wt"); // Write image to PPM file.
+	for (int i = 0; i < m_shapeCnt; i++) {
+		if (i < m_shapeCnt - 1) fprintf(f, "Node, nodeCounter (%d), Bound (%f, %f, %f, %f, %f, %f)\n", nodeCounter[i], tn[i].bound.min_x, tn[i].bound.max_x, tn[i].bound.min_y, tn[i].bound.max_y, tn[i].bound.min_z, tn[i].bound.max_z);
+		fprintf(f, "Leaf, shape (%d), Bound (%f, %f, %f, %f, %f, %f)\n", tl[i].nShape, tl[i].bound.min_x, tl[i].bound.max_x, tl[i].bound.min_y, tl[i].bound.max_y, tl[i].bound.min_z, tl[i].bound.max_z);
 	}
-	status = clEnqueueReadBuffer(m_cq, m_lBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt), dtl, 0, NULL, NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to read the OpenCL leaf buffer: %d\n", status);
-		return;
-	}
-	status = clEnqueueReadBuffer(m_cq, ncBuf, CL_TRUE, 0, sizeof(int) * (m_shapeCnt), nodeCounter, 0, NULL, NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to read the OpenCL nodeCounter buffer: %d\n", status);
-		return;
-	}
+	fclose(f);
 #endif
-	clReleaseMemObject(sgBuf);
-	clReleaseMemObject(ncBuf);
+	clErrchk(clReleaseMemObject(sgBuf));
+	clErrchk(clReleaseMemObject(ncBuf));
 
 	free(nodeCounter);
 
@@ -558,32 +350,11 @@ void CLBVH::optimize()
 
 	cl_int status;
 
-	cl_mem ncBuf = clCreateBuffer(
-		m_ctx,
-		CL_MEM_READ_WRITE,
-		sizeof(int) * (m_shapeCnt),
-		NULL,
-		&status);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to create OpenCL nodeCounter buffer: %d\n", status);
-		return;
-	}
-
-	status = clEnqueueWriteBuffer(
-		m_cq,
-		ncBuf,
-		CL_TRUE,
-		0,
-		sizeof(int) * (m_shapeCnt),
-		nodeCounter,
-		0,
-		NULL,
-		NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to write the OpenCL nodeCounter buffer: %d\n", status);
-		return;
-	}
+	cl_mem ncBuf = clCreateBuffer(m_ctx, CL_MEM_READ_WRITE, sizeof(int) * (m_shapeCnt), NULL, &status);
+	clErrchk(status);
 	
+	clErrchk(clEnqueueWriteBuffer(m_cq, ncBuf, CL_TRUE, 0, sizeof(int) * (m_shapeCnt), nodeCounter, 0, NULL, NULL));
+		
 	size_t globalThreads[1];
 	size_t localThreads[1];
 
@@ -591,97 +362,33 @@ void CLBVH::optimize()
 	globalThreads[0] = ((m_shapeCnt + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
 	localThreads[0] = BLOCK_SIZE;
 
+	int index = 0;
 	/* Set kernel arguments */
-	status = clSetKernelArg(m_kOpt, 0, sizeof(int), &m_shapeCnt);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #0: %d\n", status);
-		return;
-	}
-
-	status = clSetKernelArg(
-		m_kOpt,
-		1,
-		sizeof(cl_mem),
-		(void *)&ncBuf);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #1: %d\n", status);
-		return;
-	}
-
-	status = clSetKernelArg(
-		m_kOpt,
-		2,
-		sizeof(cl_mem),
-		(void *)&m_nBuf);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #2: %d\n", status);
-		return;
-	}
-
-	status = clSetKernelArg(
-		m_kOpt,
-		3,
-		sizeof(cl_mem),
-		(void *)&m_lBuf);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to set OpenCL arg. #3: %d\n", status);
-		return;
-	}
-
-	status = clEnqueueNDRangeKernel(
-		m_cq,
-		m_kOpt,
-		1,
-		NULL,
-		globalThreads,
-		localThreads,
-		0,
-		NULL,
-		NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to enqueue OpenCL work: %d\n", status);
-		return;
-	}
-
+	clErrchk(clSetKernelArg(m_kOpt, index++, sizeof(int), &m_shapeCnt));
+	clErrchk(clSetKernelArg(m_kOpt, index++, sizeof(cl_mem), (void *)&ncBuf));
+	clErrchk(clSetKernelArg(m_kOpt, index++, sizeof(cl_mem), (void *)&m_nBuf));
+	clErrchk(clSetKernelArg(m_kOpt, index++, sizeof(cl_mem), (void *)&m_lBuf));
+	
+	clErrchk(clEnqueueNDRangeKernel(m_cq, m_kOpt, 1, NULL, globalThreads, localThreads, 0, NULL, NULL));
 #ifdef DEBUG_TREE
 	clFinish(m_cq);
 
-	status = clEnqueueReadBuffer(m_cq, m_nBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt - 1), dtn, 0, NULL, NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to read the OpenCL node buffer: %d\n", status);
-		return;
-	}
-	status = clEnqueueReadBuffer(m_cq, m_lBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt), dtl, 0, NULL, NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to read the OpenCL leaf buffer: %d\n", status);
-		return;
-	}
-	status = clEnqueueReadBuffer(m_cq, ncBuf, CL_TRUE, 0, sizeof(int) * (m_shapeCnt), nodeCounter, 0, NULL, NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to read the OpenCL nodeCounter buffer: %d\n", status);
-		return;
-	}
+	clErrchk(clEnqueueReadBuffer(m_cq, m_nBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt - 1), tn, 0, NULL, NULL));
+	clErrchk(clEnqueueReadBuffer(m_cq, m_lBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt), tl, 0, NULL, NULL));
+	clErrchk(clEnqueueReadBuffer(m_cq, ncBuf, CL_TRUE, 0, sizeof(int) * (m_shapeCnt), nodeCounter, 0, NULL, NULL));
 #endif
-	clReleaseMemObject(ncBuf);
+	clErrchk(clReleaseMemObject(ncBuf));
 
 	free(nodeCounter);
 }
 
-void CLBVH::getTrees(TreeNode **pptn, TreeNode **pptl)
+void CLBVH::getTrees(BVHTreeNode **ppbtn, BVHTreeNode **ppbtl)
 {
 	cl_int status;
 
-	status = clEnqueueReadBuffer(m_cq, m_nBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt - 1), tn, 0, NULL, NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to read the OpenCL node buffer: %d\n", status);
-		return;
-	}
-	status = clEnqueueReadBuffer(m_cq, m_lBuf, CL_TRUE, 0, sizeof(TreeNode) * (m_shapeCnt), tl, 0, NULL, NULL);
-	if (status != CL_SUCCESS) {
-		LOGE("Failed to read the OpenCL leaf buffer: %d\n", status);
-		return;
-	}
-
-	*pptn = tn;
-	*pptl = tl;
+	clErrchk(clEnqueueReadBuffer(m_cq, m_nBuf, CL_TRUE, 0, sizeof(BVHTreeNode) * (m_shapeCnt - 1), btn, 0, NULL, NULL));
+	clErrchk(clEnqueueReadBuffer(m_cq, m_lBuf, CL_TRUE, 0, sizeof(BVHTreeNode) * (m_shapeCnt), btl, 0, NULL, NULL));
+	
+	*ppbtn = btn;
+	*ppbtl = btl;
 }

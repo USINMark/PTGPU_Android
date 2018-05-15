@@ -1,12 +1,16 @@
 #include <jni.h>
 #include <string>
 #include <string.h>
+
 #include "include/displayfunc.h"
 #include "include/native-lib.h"
+#include "include/geom.h"
 
 #ifdef __cplusplus
 //extern "C" {
 #endif
+
+extern bool Read(char *fileName);
 
 extern "C" JNIEXPORT jstring
 JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_stringFromJNI(
@@ -26,14 +30,30 @@ JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_initSmallPtGPU(JNIEnv* env, job
     width = w;
     height = h;
 
-    if (ReadFile(env->GetStringUTFChars(s, NULL)))
-    {
+    if (Read((char *)env->GetStringUTFChars(s, NULL))) {
         AddWallLight();
-        UpdateCamera();
-        /*------------------------------------------------------------------------*/
+
+#if (ACCELSTR == 0)
         SetUpOpenCL();
-        BuildBVH();
+#elif (ACCELSTR == 1)
+        SetUpOpenCL();
+		BuildBVH();
+#elif (ACCELSTR == 2)
+		BuildKDtree();
+		SetUpOpenCL();
+#endif
+        UpdateCamera();
+        ReInit(0);
     }
+}
+
+extern "C" JNIEXPORT void
+JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_reinitCamera(JNIEnv* env, jobject /* this */, jfloat origx, jfloat origy, jfloat origz, jfloat targx, jfloat targy, jfloat targz)
+{
+    camera.orig.x = origx,camera.orig.y = origy, camera.orig.z = origz;
+    camera.target.x =targx, camera.target.y =targy, camera.target.z = targz;
+
+    ReInit(0);
 }
 
 extern "C" JNIEXPORT jintArray
@@ -48,8 +68,7 @@ JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_updateRendering(JNIEnv* env, jo
 }
 
 extern "C" JNIEXPORT void
-JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_finishRendering(JNIEnv* env, jobject /* this */)
-{
+JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_finishRendering(JNIEnv* env, jobject /* this */) {
     // Get JNI Env for all function calls
 }
 

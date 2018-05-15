@@ -45,9 +45,13 @@ typedef struct {
 
 #ifndef GPU_KERNEL
 #define clamp(x, a, b) ((x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
-#define max(x, y) ( (x) > (y) ? (x) : (y))
-#define min(x, y) ( (x) < (y) ? (x) : (y))
 #define sign(x) ((x) > 0 ? 1 : -1)
+#ifndef max
+#define max(x, y) ( (x) > (y) ? (x) : (y))
+#endif
+#ifndef min
+#define min(x, y) ( (x) < (y) ? (x) : (y))
+#endif
 #endif
 
 #define toInt(x) ((int)(pow(clamp(x, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f))

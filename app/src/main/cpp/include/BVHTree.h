@@ -1,5 +1,5 @@
 
-typedef struct TreeNode {
+typedef struct BVHTreeNode {
 	int min;
 	int max;
 
@@ -11,7 +11,7 @@ typedef struct TreeNode {
 	Bound bound;
 	float cost;
 	float area;		
-} TreeNode;
+} BVHTreeNode;
 
 typedef struct {
     unsigned char partition;
