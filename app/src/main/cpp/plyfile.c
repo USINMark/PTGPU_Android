@@ -39,20 +39,21 @@ WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 #include <math.h>
 #include <string.h>
 #include "include/ply.h"
+
 #ifdef __ANDROID__
 #include "include/native-lib.h"
 #endif
 
 char *type_names[] = {
-	"invalid",
-	"char", "short", "int",
-	"uchar", "ushort", "uint",
-	"float", "double",
-	"uint8", "int32", "float32",
+		"invalid",
+		"char", "short", "int",
+		"uchar", "ushort", "uint",
+		"float", "double",
+		"uint8", "int32", "float32",
 };
 
 int ply_type_size[] = {
-	0, 1, 2, 4, 1, 2, 4, 4, 8, 1, 4, 4, 
+		0, 1, 2, 4, 1, 2, 4, 4, 8, 1, 4, 4,
 };
 
 #define NO_OTHER_PROPS  -1
@@ -112,7 +113,7 @@ void ascii_get_element(PlyFile *, char *);
 void binary_get_element(PlyFile *, char *);
 
 /* memory allocation */
-static char *my_alloc(int, int, char *);
+char *my_alloc(int, int, char *);
 
 
 /*************/
@@ -134,10 +135,10 @@ returns a pointer to a PlyFile, used to refer to this file, or NULL if error
 ******************************************************************************/
 
 PlyFile *ply_write(
-	FILE *fp,
-	int nelems,
-	char **elem_names,
-	int file_type
+		FILE *fp,
+		int nelems,
+		char **elem_names,
+		int file_type
 )
 {
 	int i;
@@ -194,11 +195,11 @@ returns a file identifier, used to refer to this file, or NULL if error
 ******************************************************************************/
 
 PlyFile *ply_open_for_writing(
-	char *filename,
-	int nelems,
-	char **elem_names,
-	int file_type,
-	float *version
+		char *filename,
+		int nelems,
+		char **elem_names,
+		int file_type,
+		float *version
 )
 {
 	int i;
@@ -249,11 +250,11 @@ prop_list - list of properties
 ******************************************************************************/
 
 void ply_describe_element(
-	PlyFile *plyfile,
-	char *elem_name,
-	int nelems,
-	int nprops,
-	PlyProperty *prop_list
+		PlyFile *plyfile,
+		char *elem_name,
+		int nelems,
+		int nprops,
+		PlyProperty *prop_list
 )
 {
 	int i;
@@ -294,9 +295,9 @@ prop      - the new property
 ******************************************************************************/
 
 void ply_describe_property(
-	PlyFile *plyfile,
-	char *elem_name,
-	PlyProperty *prop
+		PlyFile *plyfile,
+		char *elem_name,
+		PlyProperty *prop
 )
 {
 	PlyElement *elem;
@@ -306,7 +307,7 @@ void ply_describe_property(
 	elem = find_element(plyfile, elem_name);
 	if (elem == NULL) {
 		fprintf(stderr, "ply_describe_property: can't find element '%s'\n",
-			elem_name);
+				elem_name);
 		return;
 	}
 
@@ -320,9 +321,9 @@ void ply_describe_property(
 	else {
 		elem->nprops++;
 		elem->props = (PlyProperty **)
-			realloc(elem->props, sizeof(PlyProperty *) * elem->nprops);
+				realloc(elem->props, sizeof(PlyProperty *) * elem->nprops);
 		elem->store_prop = (char *)
-			realloc(elem->store_prop, sizeof(char) * elem->nprops);
+				realloc(elem->store_prop, sizeof(char) * elem->nprops);
 	}
 
 	/* copy the new property */
@@ -340,9 +341,9 @@ they are in an element.
 ******************************************************************************/
 
 void ply_describe_other_properties(
-	PlyFile *plyfile,
-	PlyOtherProp *other,
-	int offset
+		PlyFile *plyfile,
+		PlyOtherProp *other,
+		int offset
 )
 {
 	int i;
@@ -353,7 +354,7 @@ void ply_describe_other_properties(
 	elem = find_element(plyfile, other->name);
 	if (elem == NULL) {
 		fprintf(stderr, "ply_describe_other_properties: can't find element '%s'\n",
-			other->name);
+				other->name);
 		return;
 	}
 
@@ -361,7 +362,7 @@ void ply_describe_other_properties(
 
 	if (elem->nprops == 0) {
 		elem->props = (PlyProperty **)
-			myalloc(sizeof(PlyProperty *) * other->nprops);
+				myalloc(sizeof(PlyProperty *) * other->nprops);
 		elem->store_prop = (char *)myalloc(sizeof(char) * other->nprops);
 		elem->nprops = 0;
 	}
@@ -369,9 +370,9 @@ void ply_describe_other_properties(
 		int newsize;
 		newsize = elem->nprops + other->nprops;
 		elem->props = (PlyProperty **)
-			realloc(elem->props, sizeof(PlyProperty *) * newsize);
+				realloc(elem->props, sizeof(PlyProperty *) * newsize);
 		elem->store_prop = (char *)
-			realloc(elem->store_prop, sizeof(char) * newsize);
+				realloc(elem->store_prop, sizeof(char) * newsize);
 	}
 
 	/* copy the other properties */
@@ -400,9 +401,9 @@ nelems    - number of elements of this type to be written
 ******************************************************************************/
 
 void ply_element_count(
-	PlyFile *plyfile,
-	char *elem_name,
-	int nelems
+		PlyFile *plyfile,
+		char *elem_name,
+		int nelems
 )
 {
 	int i;
@@ -438,19 +439,19 @@ void ply_header_complete(PlyFile *plyfile)
 	fprintf(fp, "ply\n");
 
 	switch (plyfile->file_type) {
-	case PLY_ASCII:
-		fprintf(fp, "format ascii 1.0\n");
-		break;
-	case PLY_BINARY_BE:
-		fprintf(fp, "format binary_big_endian 1.0\n");
-		break;
-	case PLY_BINARY_LE:
-		fprintf(fp, "format binary_little_endian 1.0\n");
-		break;
-	default:
-		fprintf(stderr, "ply_header_complete: bad file type = %d\n",
-			plyfile->file_type);
-		exit(-1);
+		case PLY_ASCII:
+			fprintf(fp, "format ascii 1.0\n");
+			break;
+		case PLY_BINARY_BE:
+			fprintf(fp, "format binary_big_endian 1.0\n");
+			break;
+		case PLY_BINARY_LE:
+			fprintf(fp, "format binary_little_endian 1.0\n");
+			break;
+		default:
+			fprintf(stderr, "ply_header_complete: bad file type = %d\n",
+					plyfile->file_type);
+			exit(-1);
 	}
 
 	/* write out the comments */
@@ -560,27 +561,27 @@ void ply_put_element(PlyFile *plyfile, void *elem_ptr)
 			if (prop->is_list) {
 				item = elem_data + prop->count_offset;
 				get_stored_item((void *)item, prop->count_internal,
-					&int_val, &uint_val, &double_val);
+								&int_val, &uint_val, &double_val);
 				write_ascii_item(fp, int_val, uint_val, double_val,
-					prop->count_external);
+								 prop->count_external);
 				list_count = uint_val;
 				item_ptr = (char **)(elem_data + prop->offset);
 				item = item_ptr[0];
 				item_size = ply_type_size[prop->internal_type];
 				for (k = 0; k < list_count; k++) {
 					get_stored_item((void *)item, prop->internal_type,
-						&int_val, &uint_val, &double_val);
+									&int_val, &uint_val, &double_val);
 					write_ascii_item(fp, int_val, uint_val, double_val,
-						prop->external_type);
+									 prop->external_type);
 					item += item_size;
 				}
 			}
 			else {
 				item = elem_data + prop->offset;
 				get_stored_item((void *)item, prop->internal_type,
-					&int_val, &uint_val, &double_val);
+								&int_val, &uint_val, &double_val);
 				write_ascii_item(fp, int_val, uint_val, double_val,
-					prop->external_type);
+								 prop->external_type);
 			}
 		}
 
@@ -601,18 +602,18 @@ void ply_put_element(PlyFile *plyfile, void *elem_ptr)
 				item = elem_data + prop->count_offset;
 				item_size = ply_type_size[prop->count_internal];
 				get_stored_item((void *)item, prop->count_internal,
-					&int_val, &uint_val, &double_val);
+								&int_val, &uint_val, &double_val);
 				write_binary_item(fp, int_val, uint_val, double_val,
-					prop->count_external);
+								  prop->count_external);
 				list_count = uint_val;
 				item_ptr = (char **)(elem_data + prop->offset);
 				item = item_ptr[0];
 				item_size = ply_type_size[prop->internal_type];
 				for (k = 0; k < list_count; k++) {
 					get_stored_item((void *)item, prop->internal_type,
-						&int_val, &uint_val, &double_val);
+									&int_val, &uint_val, &double_val);
 					write_binary_item(fp, int_val, uint_val, double_val,
-						prop->external_type);
+									  prop->external_type);
 					item += item_size;
 				}
 			}
@@ -620,9 +621,9 @@ void ply_put_element(PlyFile *plyfile, void *elem_ptr)
 				item = elem_data + prop->offset;
 				item_size = ply_type_size[prop->internal_type];
 				get_stored_item((void *)item, prop->internal_type,
-					&int_val, &uint_val, &double_val);
+								&int_val, &uint_val, &double_val);
 				write_binary_item(fp, int_val, uint_val, double_val,
-					prop->external_type);
+								  prop->external_type);
 			}
 		}
 
@@ -645,13 +646,13 @@ void ply_put_comment(PlyFile *plyfile, char *comment)
 		plyfile->comments = (char **)myalloc(sizeof(char *));
 	else
 		plyfile->comments = (char **)realloc(plyfile->comments,
-			sizeof(char *) * (plyfile->num_comments + 1));
+											 sizeof(char *) * (plyfile->num_comments + 1));
 
 	/* add comment to list */
 #ifdef WIN32
 	plyfile->comments[plyfile->num_comments] = _strdup(comment);
 #else
-	plyfile->comments[plyfile->num_comments] = strdup(comment); 
+	plyfile->comments[plyfile->num_comments] = strdup(comment);
 #endif
 	plyfile->num_comments++;
 }
@@ -673,7 +674,7 @@ void ply_put_obj_info(PlyFile *plyfile, char *obj_info)
 		plyfile->obj_info = (char **)myalloc(sizeof(char *));
 	else
 		plyfile->obj_info = (char **)realloc(plyfile->obj_info,
-			sizeof(char *) * (plyfile->num_obj_info + 1));
+											 sizeof(char *) * (plyfile->num_obj_info + 1));
 
 	/* add info to list */
 #ifdef WIN32
@@ -693,7 +694,6 @@ void ply_put_obj_info(PlyFile *plyfile, char *obj_info)
 /*************/
 /*  Reading  */
 /*************/
-
 
 
 /******************************************************************************
@@ -790,7 +790,7 @@ PlyFile *ply_read(FILE *fp, int *nelems, char ***elem_names)
 #ifdef WIN32
 		elist[i] = _strdup(plyfile->elems[i]->name);
 #else
-		elist[i] = strdup(plyfile->elems[i]->name);
+			elist[i] = strdup(plyfile->elems[i]->name);
 #endif
 
 	*elem_names = elist;
@@ -817,11 +817,11 @@ returns a file identifier, used to refer to this file, or NULL if error
 ******************************************************************************/
 
 PlyFile *ply_open_for_reading(
-	char *filename,
-	int *nelems,
-	char ***elem_names,
-	int *file_type,
-	float *version
+		char *filename,
+		int *nelems,
+		char ***elem_names,
+		int *file_type,
+		float *version
 )
 {
 	FILE *fp;
@@ -840,10 +840,10 @@ PlyFile *ply_open_for_reading(
 	if (fp == NULL)
 		return (NULL);
 
-    /* create the PlyFile data structure */
+	/* create the PlyFile data structure */
 	plyfile = ply_read(fp, nelems, elem_names);
 
-    /* determine the file type and version */
+	/* determine the file type and version */
 	*file_type = plyfile->file_type;
 	*version = plyfile->version;
 
@@ -866,10 +866,10 @@ returns a list of properties, or NULL if the file doesn't contain that elem
 ******************************************************************************/
 
 PlyProperty **ply_get_element_description(
-	PlyFile *plyfile,
-	char *elem_name,
-	int *nelems,
-	int *nprops
+		PlyFile *plyfile,
+		char *elem_name,
+		int *nelems,
+		int *nprops
 )
 {
 	int i;
@@ -910,10 +910,10 @@ prop_list - list of properties
 ******************************************************************************/
 
 void ply_get_element_setup(
-	PlyFile *plyfile,
-	char *elem_name,
-	int nprops,
-	PlyProperty *prop_list
+		PlyFile *plyfile,
+		char *elem_name,
+		int nprops,
+		PlyProperty *prop_list
 )
 {
 	int i;
@@ -932,7 +932,7 @@ void ply_get_element_setup(
 		prop = find_property(elem, prop_list[i].name, &index);
 		if (prop == NULL) {
 			fprintf(stderr, "Warning:  Can't find property '%s' in element '%s'\n",
-				prop_list[i].name, elem_name);
+					prop_list[i].name, elem_name);
 			continue;
 		}
 
@@ -961,9 +961,9 @@ prop      - property to add to those that will be returned
 ******************************************************************************/
 
 void ply_get_property(
-	PlyFile *plyfile,
-	char *elem_name,
-	PlyProperty *prop
+		PlyFile *plyfile,
+		char *elem_name,
+		PlyProperty *prop
 )
 {
 	PlyElement *elem;
@@ -979,7 +979,7 @@ void ply_get_property(
 	prop_ptr = find_property(elem, prop->name, &index);
 	if (prop_ptr == NULL) {
 		fprintf(stderr, "Warning:  Can't find property '%s' in element '%s'\n",
-			prop->name, elem_name);
+				prop->name, elem_name);
 		return;
 	}
 	prop_ptr->internal_type = prop->internal_type;
@@ -1102,7 +1102,7 @@ void setup_other_props(PlyFile *plyfile, PlyElement *elem)
 					size += ply_type_size[prop->count_external];
 				}
 			}
-			/* not list */
+				/* not list */
 			else if (type_size == ply_type_size[prop->external_type]) {
 				prop->offset = size;
 				size += ply_type_size[prop->external_type];
@@ -1131,9 +1131,9 @@ returns pointer to structure containing description of other_props
 ******************************************************************************/
 
 PlyOtherProp *ply_get_other_properties(
-	PlyFile *plyfile,
-	char *elem_name,
-	int offset
+		PlyFile *plyfile,
+		char *elem_name,
+		int offset
 )
 {
 	int i;
@@ -1146,7 +1146,7 @@ PlyOtherProp *ply_get_other_properties(
 	elem = find_element(plyfile, elem_name);
 	if (elem == NULL) {
 		fprintf(stderr, "ply_get_other_properties: Can't find element '%s'\n",
-			elem_name);
+				elem_name);
 		return (NULL);
 	}
 
@@ -1224,9 +1224,9 @@ returns pointer to ALL the "other" element data for this PLY file
 ******************************************************************************/
 
 PlyOtherElems *ply_get_other_element(
-	PlyFile *plyfile,
-	char *elem_name,
-	int elem_count
+		PlyFile *plyfile,
+		char *elem_name,
+		int elem_count
 )
 {
 	int i;
@@ -1239,7 +1239,7 @@ PlyOtherElems *ply_get_other_element(
 	elem = find_element(plyfile, elem_name);
 	if (elem == NULL) {
 		fprintf(stderr,
-			"ply_get_other_element: can't find element '%s'\n", elem_name);
+				"ply_get_other_element: can't find element '%s'\n", elem_name);
 		exit(-1);
 	}
 
@@ -1256,7 +1256,7 @@ PlyOtherElems *ply_get_other_element(
 	else {
 		other_elems = plyfile->other_elems;
 		other_elems->other_list = (OtherElem *)realloc(other_elems->other_list,
-			sizeof(OtherElem) * other_elems->num_elems + 1);
+													   sizeof(OtherElem) * other_elems->num_elems + 1);
 		other = &(other_elems->other_list[other_elems->num_elems]);
 		other_elems->num_elems++;
 	}
@@ -1273,11 +1273,11 @@ PlyOtherElems *ply_get_other_element(
 
 	/* create a list to hold all the current elements */
 	other->other_data = (OtherData **)
-		malloc(sizeof(OtherData *) * other->elem_count);
+			malloc(sizeof(OtherData *) * other->elem_count);
 
 	/* set up for getting elements */
 	other->other_props = ply_get_other_properties(plyfile, elem_name,
-		offsetof(OtherData, other_props));
+												  offsetof(OtherData, other_props));
 
 	/* grab all these elements */
 	for (i = 0; i < other->elem_count; i++) {
@@ -1301,8 +1301,8 @@ other_elems - info about other elements that we want to store
 ******************************************************************************/
 
 void ply_describe_other_elements(
-	PlyFile *plyfile,
-	PlyOtherElems *other_elems
+		PlyFile *plyfile,
+		PlyOtherElems *other_elems
 )
 {
 	int i;
@@ -1321,7 +1321,7 @@ void ply_describe_other_elements(
 		other = &(other_elems->other_list[i]);
 		ply_element_count(plyfile, other->elem_name, other->elem_count);
 		ply_describe_other_properties(plyfile, other->other_props,
-			offsetof(OtherData, other_props));
+									  offsetof(OtherData, other_props));
 	}
 }
 
@@ -1390,7 +1390,6 @@ void ply_close(PlyFile *plyfile)
 	/* free up memory associated with the PLY file */
 	free(plyfile);
 }
-
 
 /******************************************************************************
 Get version number and file type of a PlyFile.
@@ -1552,9 +1551,9 @@ void ascii_get_element(PlyFile *plyfile, char *elem_ptr)
 
 		if (prop->is_list) {       /* a list */
 
-								   /* get and store the number of items in the list */
+			/* get and store the number of items in the list */
 			get_ascii_item(words[which_word++], prop->count_external,
-				&int_val, &uint_val, &double_val);
+						   &int_val, &uint_val, &double_val);
 			if (store_it) {
 				item = elem_data + prop->count_offset;
 				store_item(item, prop->count_internal, int_val, uint_val, double_val);
@@ -1579,10 +1578,10 @@ void ascii_get_element(PlyFile *plyfile, char *elem_ptr)
 				/* read items and store them into the array */
 				for (k = 0; k < list_count; k++) {
 					get_ascii_item(words[which_word++], prop->external_type,
-						&int_val, &uint_val, &double_val);
+								   &int_val, &uint_val, &double_val);
 					if (store_it) {
 						store_item(item, prop->internal_type,
-							int_val, uint_val, double_val);
+								   int_val, uint_val, double_val);
 						item += item_size;
 					}
 				}
@@ -1591,7 +1590,7 @@ void ascii_get_element(PlyFile *plyfile, char *elem_ptr)
 		}
 		else {                     /* not a list */
 			get_ascii_item(words[which_word++], prop->external_type,
-				&int_val, &uint_val, &double_val);
+						   &int_val, &uint_val, &double_val);
 			if (store_it) {
 				item = elem_data + prop->offset;
 				store_item(item, prop->internal_type, int_val, uint_val, double_val);
@@ -1662,9 +1661,9 @@ void binary_get_element(PlyFile *plyfile, char *elem_ptr)
 
 		if (prop->is_list) {       /* a list */
 
-								   /* get and store the number of items in the list */
+			/* get and store the number of items in the list */
 			get_binary_item(fp, prop->count_external,
-				&int_val, &uint_val, &double_val);
+							&int_val, &uint_val, &double_val);
 			if (store_it) {
 				item = elem_data + prop->count_offset;
 				store_item(item, prop->count_internal, int_val, uint_val, double_val);
@@ -1694,10 +1693,10 @@ void binary_get_element(PlyFile *plyfile, char *elem_ptr)
 				/* read items and store them into the array */
 				for (k = 0; k < list_count; k++) {
 					get_binary_item(fp, prop->external_type,
-						&int_val, &uint_val, &double_val);
+									&int_val, &uint_val, &double_val);
 					if (store_it) {
 						store_item(item, prop->internal_type,
-							int_val, uint_val, double_val);
+								   int_val, uint_val, double_val);
 						item += item_size;
 					}
 				}
@@ -1706,7 +1705,7 @@ void binary_get_element(PlyFile *plyfile, char *elem_ptr)
 		}
 		else {                     /* not a list */
 			get_binary_item(fp, prop->external_type,
-				&int_val, &uint_val, &double_val);
+							&int_val, &uint_val, &double_val);
 			if (store_it) {
 				item = elem_data + prop->offset;
 				store_item(item, prop->internal_type, int_val, uint_val, double_val);
@@ -1837,7 +1836,6 @@ char **get_words(FILE *fp, int *nwords, char **orig_line)
 	return (words);
 }
 
-
 /******************************************************************************
 Return the value of an item, given a pointer to it and its type.
 
@@ -1864,44 +1862,44 @@ double get_item_value(char *item, int type)
 	double double_value;
 
 	switch (type) {
-	case PLY_CHAR:
-	case PLY_UINT8:
-		pchar = (char *)item;
-		int_value = *pchar;
-		return ((double)int_value);
-	case PLY_UCHAR:
-		puchar = (unsigned char *)item;
-		int_value = *puchar;
-		return ((double)int_value);
-	case PLY_SHORT:
-		pshort = (short int *)item;
-		int_value = *pshort;
-		return ((double)int_value);
-	case PLY_USHORT:
-		pushort = (unsigned short int *) item;
-		int_value = *pushort;
-		return ((double)int_value);
-	case PLY_INT:
-	case PLY_INT32:
-		pint = (int *)item;
-		int_value = *pint;
-		return ((double)int_value);
-	case PLY_UINT:
-		puint = (unsigned int *)item;
-		uint_value = *puint;
-		return ((double)uint_value);
-	case PLY_FLOAT:
-	case PLY_FLOAT32:
-		pfloat = (float *)item;
-		double_value = *pfloat;
-		return (double_value);
-	case PLY_DOUBLE:
-		pdouble = (double *)item;
-		double_value = *pdouble;
-		return (double_value);
-	default:
-		fprintf(stderr, "get_item_value: bad type = %d\n", type);
-		exit(-1);
+		case PLY_CHAR:
+		case PLY_UINT8:
+			pchar = (char *)item;
+			int_value = *pchar;
+			return ((double)int_value);
+		case PLY_UCHAR:
+			puchar = (unsigned char *)item;
+			int_value = *puchar;
+			return ((double)int_value);
+		case PLY_SHORT:
+			pshort = (short int *)item;
+			int_value = *pshort;
+			return ((double)int_value);
+		case PLY_USHORT:
+			pushort = (unsigned short int *) item;
+			int_value = *pushort;
+			return ((double)int_value);
+		case PLY_INT:
+		case PLY_INT32:
+			pint = (int *)item;
+			int_value = *pint;
+			return ((double)int_value);
+		case PLY_UINT:
+			puint = (unsigned int *)item;
+			uint_value = *puint;
+			return ((double)uint_value);
+		case PLY_FLOAT:
+		case PLY_FLOAT32:
+			pfloat = (float *)item;
+			double_value = *pfloat;
+			return (double_value);
+		case PLY_DOUBLE:
+			pdouble = (double *)item;
+			double_value = *pdouble;
+			return (double_value);
+		default:
+			fprintf(stderr, "get_item_value: bad type = %d\n", type);
+			exit(-1);
 	}
 }
 
@@ -1918,11 +1916,11 @@ type       - data type to write out
 ******************************************************************************/
 
 void write_binary_item(
-	FILE *fp,
-	int int_val,
-	unsigned int uint_val,
-	double double_val,
-	int type
+		FILE *fp,
+		int int_val,
+		unsigned int uint_val,
+		double double_val,
+		int type
 )
 {
 	unsigned char uchar_val;
@@ -1932,41 +1930,41 @@ void write_binary_item(
 	float float_val;
 
 	switch (type) {
-	case PLY_CHAR:
-	case PLY_UINT8:
-		char_val = int_val;
-		fwrite(&char_val, 1, 1, fp);
-		break;
-	case PLY_SHORT:
-		short_val = int_val;
-		fwrite(&short_val, 2, 1, fp);
-		break;
-	case PLY_INT:
-	case PLY_INT32:
-		fwrite(&int_val, 4, 1, fp);
-		break;
-	case PLY_UCHAR:
-		uchar_val = uint_val;
-		fwrite(&uchar_val, 1, 1, fp);
-		break;
-	case PLY_USHORT:
-		ushort_val = uint_val;
-		fwrite(&ushort_val, 2, 1, fp);
-		break;
-	case PLY_UINT:
-		fwrite(&uint_val, 4, 1, fp);
-		break;
-	case PLY_FLOAT:
-	case PLY_FLOAT32:
-		float_val = double_val;
-		fwrite(&float_val, 4, 1, fp);
-		break;
-	case PLY_DOUBLE:
-		fwrite(&double_val, 8, 1, fp);
-		break;
-	default:
-		fprintf(stderr, "write_binary_item: bad type = %d\n", type);
-		exit(-1);
+		case PLY_CHAR:
+		case PLY_UINT8:
+			char_val = int_val;
+			fwrite(&char_val, 1, 1, fp);
+			break;
+		case PLY_SHORT:
+			short_val = int_val;
+			fwrite(&short_val, 2, 1, fp);
+			break;
+		case PLY_INT:
+		case PLY_INT32:
+			fwrite(&int_val, 4, 1, fp);
+			break;
+		case PLY_UCHAR:
+			uchar_val = uint_val;
+			fwrite(&uchar_val, 1, 1, fp);
+			break;
+		case PLY_USHORT:
+			ushort_val = uint_val;
+			fwrite(&ushort_val, 2, 1, fp);
+			break;
+		case PLY_UINT:
+			fwrite(&uint_val, 4, 1, fp);
+			break;
+		case PLY_FLOAT:
+		case PLY_FLOAT32:
+			float_val = double_val;
+			fwrite(&float_val, 4, 1, fp);
+			break;
+		case PLY_DOUBLE:
+			fwrite(&double_val, 8, 1, fp);
+			break;
+		default:
+			fprintf(stderr, "write_binary_item: bad type = %d\n", type);
+			exit(-1);
 	}
 }
 
@@ -1983,34 +1981,34 @@ type       - data type to write out
 ******************************************************************************/
 
 void write_ascii_item(
-	FILE *fp,
-	int int_val,
-	unsigned int uint_val,
-	double double_val,
-	int type
+		FILE *fp,
+		int int_val,
+		unsigned int uint_val,
+		double double_val,
+		int type
 )
 {
 	switch (type) {
-	case PLY_CHAR:
-	case PLY_UINT8:
-	case PLY_SHORT:
-	case PLY_INT:
-	case PLY_INT32:
-		fprintf(fp, "%d ", int_val);
-		break;
-	case PLY_UCHAR:
-	case PLY_USHORT:
-	case PLY_UINT:
-		fprintf(fp, "%u ", uint_val);
-		break;
-	case PLY_FLOAT:
-	case PLY_FLOAT32:
-	case PLY_DOUBLE:
-		fprintf(fp, "%g ", double_val);
-		break;
-	default:
-		fprintf(stderr, "write_ascii_item: bad type = %d\n", type);
-		exit(-1);
+		case PLY_CHAR:
+		case PLY_UINT8:
+		case PLY_SHORT:
+		case PLY_INT:
+		case PLY_INT32:
+			fprintf(fp, "%d ", int_val);
+			break;
+		case PLY_UCHAR:
+		case PLY_USHORT:
+		case PLY_UINT:
+			fprintf(fp, "%u ", uint_val);
+			break;
+		case PLY_FLOAT:
+		case PLY_FLOAT32:
+		case PLY_DOUBLE:
+			fprintf(fp, "%g ", double_val);
+			break;
+		default:
+			fprintf(stderr, "write_ascii_item: bad type = %d\n", type);
+			exit(-1);
 	}
 }
 
@@ -2042,52 +2040,52 @@ double old_write_ascii_item(FILE *fp, char *item, int type)
 	double double_value;
 
 	switch (type) {
-	case PLY_CHAR:
-	case PLY_UINT8:
-		pchar = (char *)item;
-		int_value = *pchar;
-		fprintf(fp, "%d ", int_value);
-		return ((double)int_value);
-	case PLY_UCHAR:
-		puchar = (unsigned char *)item;
-		int_value = *puchar;
-		fprintf(fp, "%d ", int_value);
-		return ((double)int_value);
-	case PLY_SHORT:
-		pshort = (short int *)item;
-		int_value = *pshort;
-		fprintf(fp, "%d ", int_value);
-		return ((double)int_value);
-	case PLY_USHORT:
-		pushort = (unsigned short int *) item;
-		int_value = *pushort;
-		fprintf(fp, "%d ", int_value);
-		return ((double)int_value);
-	case PLY_INT:
-	case PLY_INT32:
-		pint = (int *)item;
-		int_value = *pint;
-		fprintf(fp, "%d ", int_value);
-		return ((double)int_value);
-	case PLY_UINT:
-		puint = (unsigned int *)item;
-		uint_value = *puint;
-		fprintf(fp, "%u ", uint_value);
-		return ((double)uint_value);
-	case PLY_FLOAT:
-	case PLY_FLOAT32:
-		pfloat = (float *)item;
-		double_value = *pfloat;
-		fprintf(fp, "%g ", double_value);
-		return (double_value);
-	case PLY_DOUBLE:
-		pdouble = (double *)item;
-		double_value = *pdouble;
-		fprintf(fp, "%g ", double_value);
-		return (double_value);
-	default:
-		fprintf(stderr, "old_write_ascii_item: bad type = %d\n", type);
-		exit(-1);
+		case PLY_CHAR:
+		case PLY_UINT8:
+			pchar = (char *)item;
+			int_value = *pchar;
+			fprintf(fp, "%d ", int_value);
+			return ((double)int_value);
+		case PLY_UCHAR:
+			puchar = (unsigned char *)item;
+			int_value = *puchar;
+			fprintf(fp, "%d ", int_value);
+			return ((double)int_value);
+		case PLY_SHORT:
+			pshort = (short int *)item;
+			int_value = *pshort;
+			fprintf(fp, "%d ", int_value);
+			return ((double)int_value);
+		case PLY_USHORT:
+			pushort = (unsigned short int *) item;
+			int_value = *pushort;
+			fprintf(fp, "%d ", int_value);
+			return ((double)int_value);
+		case PLY_INT:
+		case PLY_INT32:
+			pint = (int *)item;
+			int_value = *pint;
+			fprintf(fp, "%d ", int_value);
+			return ((double)int_value);
+		case PLY_UINT:
+			puint = (unsigned int *)item;
+			uint_value = *puint;
+			fprintf(fp, "%u ", uint_value);
+			return ((double)uint_value);
+		case PLY_FLOAT:
+		case PLY_FLOAT32:
+			pfloat = (float *)item;
+			double_value = *pfloat;
+			fprintf(fp, "%g ", double_value);
+			return (double_value);
+		case PLY_DOUBLE:
+			pdouble = (double *)item;
+			double_value = *pdouble;
+			fprintf(fp, "%g ", double_value);
+			return (double_value);
+		default:
+			fprintf(stderr, "old_write_ascii_item: bad type = %d\n", type);
+			exit(-1);
 	}
 }
 
@@ -2107,60 +2105,60 @@ double_val - double-precision floating point value
 ******************************************************************************/
 
 void get_stored_item(
-	void *ptr,
-	int type,
-	int *int_val,
-	unsigned int *uint_val,
-	double *double_val
+		void *ptr,
+		int type,
+		int *int_val,
+		unsigned int *uint_val,
+		double *double_val
 )
 {
 	switch (type) {
-	case PLY_CHAR:
-	case PLY_UINT8:
-		*int_val = *((char *)ptr);
-		*uint_val = *int_val;
-		*double_val = *int_val;
-		break;
-	case PLY_UCHAR:
-		*uint_val = *((unsigned char *)ptr);
-		*int_val = *uint_val;
-		*double_val = *uint_val;
-		break;
-	case PLY_SHORT:
-		*int_val = *((short int *)ptr);
-		*uint_val = *int_val;
-		*double_val = *int_val;
-		break;
-	case PLY_USHORT:
-		*uint_val = *((unsigned short int *) ptr);
-		*int_val = *uint_val;
-		*double_val = *uint_val;
-		break;
-	case PLY_INT:
-	case PLY_INT32:
-		*int_val = *((int *)ptr);
-		*uint_val = *int_val;
-		*double_val = *int_val;
-		break;
-	case PLY_UINT:
-		*uint_val = *((unsigned int *)ptr);
-		*int_val = *uint_val;
-		*double_val = *uint_val;
-		break;
-	case PLY_FLOAT:
-	case PLY_FLOAT32:
-		*double_val = *((float *)ptr);
-		*int_val = *double_val;
-		*uint_val = *double_val;
-		break;
-	case PLY_DOUBLE:
-		*double_val = *((double *)ptr);
-		*int_val = *double_val;
-		*uint_val = *double_val;
-		break;
-	default:
-		fprintf(stderr, "get_stored_item: bad type = %d\n", type);
-		exit(-1);
+		case PLY_CHAR:
+		case PLY_UINT8:
+			*int_val = *((char *)ptr);
+			*uint_val = *int_val;
+			*double_val = *int_val;
+			break;
+		case PLY_UCHAR:
+			*uint_val = *((unsigned char *)ptr);
+			*int_val = *uint_val;
+			*double_val = *uint_val;
+			break;
+		case PLY_SHORT:
+			*int_val = *((short int *)ptr);
+			*uint_val = *int_val;
+			*double_val = *int_val;
+			break;
+		case PLY_USHORT:
+			*uint_val = *((unsigned short int *) ptr);
+			*int_val = *uint_val;
+			*double_val = *uint_val;
+			break;
+		case PLY_INT:
+		case PLY_INT32:
+			*int_val = *((int *)ptr);
+			*uint_val = *int_val;
+			*double_val = *int_val;
+			break;
+		case PLY_UINT:
+			*uint_val = *((unsigned int *)ptr);
+			*int_val = *uint_val;
+			*double_val = *uint_val;
+			break;
+		case PLY_FLOAT:
+		case PLY_FLOAT32:
+			*double_val = *((float *)ptr);
+			*int_val = *double_val;
+			*uint_val = *double_val;
+			break;
+		case PLY_DOUBLE:
+			*double_val = *((double *)ptr);
+			*int_val = *double_val;
+			*uint_val = *double_val;
+			break;
+		default:
+			fprintf(stderr, "get_stored_item: bad type = %d\n", type);
+			exit(-1);
 	}
 }
 
@@ -2180,11 +2178,11 @@ double_val - double-precision floating point value
 ******************************************************************************/
 
 void get_binary_item(
-	FILE *fp,
-	int type,
-	int *int_val,
-	unsigned int *uint_val,
-	double *double_val
+		FILE *fp,
+		int type,
+		int *int_val,
+		unsigned int *uint_val,
+		double *double_val
 )
 {
 	char c[8];
@@ -2193,60 +2191,60 @@ void get_binary_item(
 	ptr = (void *)c;
 
 	switch (type) {
-	case PLY_CHAR:
-	case PLY_UINT8:
-		fread(ptr, 1, 1, fp);
-		*int_val = *((char *)ptr);
-		*uint_val = *int_val;
-		*double_val = *int_val;
-		break;
-	case PLY_UCHAR:
-		fread(ptr, 1, 1, fp);
-		*uint_val = *((unsigned char *)ptr);
-		*int_val = *uint_val;
-		*double_val = *uint_val;
-		break;
-	case PLY_SHORT:
-		fread(ptr, 2, 1, fp);
-		*int_val = *((short int *)ptr);
-		*uint_val = *int_val;
-		*double_val = *int_val;
-		break;
-	case PLY_USHORT:
-		fread(ptr, 2, 1, fp);
-		*uint_val = *((unsigned short int *) ptr);
-		*int_val = *uint_val;
-		*double_val = *uint_val;
-		break;
-	case PLY_INT:
-	case PLY_INT32:
-		fread(ptr, 4, 1, fp);
-		*int_val = *((int *)ptr);
-		*uint_val = *int_val;
-		*double_val = *int_val;
-		break;
-	case PLY_UINT:
-		fread(ptr, 4, 1, fp);
-		*uint_val = *((unsigned int *)ptr);
-		*int_val = *uint_val;
-		*double_val = *uint_val;
-		break;
-	case PLY_FLOAT:
-	case PLY_FLOAT32:
-		fread(ptr, 4, 1, fp);
-		*double_val = *((float *)ptr);
-		*int_val = *double_val;
-		*uint_val = *double_val;
-		break;
-	case PLY_DOUBLE:
-		fread(ptr, 8, 1, fp);
-		*double_val = *((double *)ptr);
-		*int_val = *double_val;
-		*uint_val = *double_val;
-		break;
-	default:
-		fprintf(stderr, "get_binary_item: bad type = %d\n", type);
-		exit(-1);
+		case PLY_CHAR:
+		case PLY_UINT8:
+			fread(ptr, 1, 1, fp);
+			*int_val = *((char *)ptr);
+			*uint_val = *int_val;
+			*double_val = *int_val;
+			break;
+		case PLY_UCHAR:
+			fread(ptr, 1, 1, fp);
+			*uint_val = *((unsigned char *)ptr);
+			*int_val = *uint_val;
+			*double_val = *uint_val;
+			break;
+		case PLY_SHORT:
+			fread(ptr, 2, 1, fp);
+			*int_val = *((short int *)ptr);
+			*uint_val = *int_val;
+			*double_val = *int_val;
+			break;
+		case PLY_USHORT:
+			fread(ptr, 2, 1, fp);
+			*uint_val = *((unsigned short int *) ptr);
+			*int_val = *uint_val;
+			*double_val = *uint_val;
+			break;
+		case PLY_INT:
+		case PLY_INT32:
+			fread(ptr, 4, 1, fp);
+			*int_val = *((int *)ptr);
+			*uint_val = *int_val;
+			*double_val = *int_val;
+			break;
+		case PLY_UINT:
+			fread(ptr, 4, 1, fp);
+			*uint_val = *((unsigned int *)ptr);
+			*int_val = *uint_val;
+			*double_val = *uint_val;
+			break;
+		case PLY_FLOAT:
+		case PLY_FLOAT32:
+			fread(ptr, 4, 1, fp);
+			*double_val = *((float *)ptr);
+			*int_val = *double_val;
+			*uint_val = *double_val;
+			break;
+		case PLY_DOUBLE:
+			fread(ptr, 8, 1, fp);
+			*double_val = *((double *)ptr);
+			*int_val = *double_val;
+			*uint_val = *double_val;
+			break;
+		default:
+			fprintf(stderr, "get_binary_item: bad type = %d\n", type);
+			exit(-1);
 	}
 }
 
@@ -2266,43 +2264,43 @@ double_val - double-precision floating point value
 ******************************************************************************/
 
 void get_ascii_item(
-	char *word,
-	int type,
-	int *int_val,
-	unsigned int *uint_val,
-	double *double_val
+		char *word,
+		int type,
+		int *int_val,
+		unsigned int *uint_val,
+		double *double_val
 )
 {
 	switch (type) {
-	case PLY_CHAR:
-	case PLY_UINT8:
-	case PLY_UCHAR:
-	case PLY_SHORT:
-	case PLY_USHORT:
-	case PLY_INT:
-	case PLY_INT32:
-		*int_val = atoi(word);
-		*uint_val = *int_val;
-		*double_val = *int_val;
-		break;
+		case PLY_CHAR:
+		case PLY_UINT8:
+		case PLY_UCHAR:
+		case PLY_SHORT:
+		case PLY_USHORT:
+		case PLY_INT:
+		case PLY_INT32:
+			*int_val = atoi(word);
+			*uint_val = *int_val;
+			*double_val = *int_val;
+			break;
 
-	case PLY_UINT:
-		*uint_val = strtoul(word, (char **)NULL, 10);
-		*int_val = *uint_val;
-		*double_val = *uint_val;
-		break;
+		case PLY_UINT:
+			*uint_val = strtoul(word, (char **)NULL, 10);
+			*int_val = *uint_val;
+			*double_val = *uint_val;
+			break;
 
-	case PLY_FLOAT:
-	case PLY_FLOAT32:
-	case PLY_DOUBLE:
-		*double_val = atof(word);
-		*int_val = (int)*double_val;
-		*uint_val = (unsigned int)*double_val;
-		break;
+		case PLY_FLOAT:
+		case PLY_FLOAT32:
+		case PLY_DOUBLE:
+			*double_val = atof(word);
+			*int_val = (int)*double_val;
+			*uint_val = (unsigned int)*double_val;
+			break;
 
-	default:
-		fprintf(stderr, "get_ascii_item: bad type = %d\n", type);
-		exit(-1);
+		default:
+			fprintf(stderr, "get_ascii_item: bad type = %d\n", type);
+			exit(-1);
 	}
 }
 
@@ -2322,11 +2320,11 @@ item - pointer to stored value
 ******************************************************************************/
 
 void store_item(
-	char *item,
-	int type,
-	int int_val,
-	unsigned int uint_val,
-	double double_val
+		char *item,
+		int type,
+		int int_val,
+		unsigned int uint_val,
+		double double_val
 )
 {
 	unsigned char *puchar;
@@ -2338,43 +2336,43 @@ void store_item(
 	double *pdouble;
 
 	switch (type) {
-	case PLY_CHAR:
-	case PLY_UINT8:
-		*item = int_val;
-		break;
-	case PLY_UCHAR:
-		puchar = (unsigned char *)item;
-		*puchar = uint_val;
-		break;
-	case PLY_SHORT:
-		pshort = (short *)item;
-		*pshort = int_val;
-		break;
-	case PLY_USHORT:
-		pushort = (unsigned short *)item;
-		*pushort = uint_val;
-		break;
-	case PLY_INT:
-	case PLY_INT32:
-		pint = (int *)item;
-		*pint = int_val;
-		break;
-	case PLY_UINT:
-		puint = (unsigned int *)item;
-		*puint = uint_val;
-		break;
-	case PLY_FLOAT:
-	case PLY_FLOAT32:
-		pfloat = (float *)item;
-		*pfloat = double_val;
-		break;
-	case PLY_DOUBLE:
-		pdouble = (double *)item;
-		*pdouble = double_val;
-		break;
-	default:
-		fprintf(stderr, "store_item: bad type = %d\n", type);
-		exit(-1);
+		case PLY_CHAR:
+		case PLY_UINT8:
+			*item = int_val;
+			break;
+		case PLY_UCHAR:
+			puchar = (unsigned char *)item;
+			*puchar = uint_val;
+			break;
+		case PLY_SHORT:
+			pshort = (short *)item;
+			*pshort = int_val;
+			break;
+		case PLY_USHORT:
+			pushort = (unsigned short *)item;
+			*pushort = uint_val;
+			break;
+		case PLY_INT:
+		case PLY_INT32:
+			pint = (int *)item;
+			*pint = int_val;
+			break;
+		case PLY_UINT:
+			puint = (unsigned int *)item;
+			*puint = uint_val;
+			break;
+		case PLY_FLOAT:
+		case PLY_FLOAT32:
+			pfloat = (float *)item;
+			*pfloat = double_val;
+			break;
+		case PLY_DOUBLE:
+			pdouble = (double *)item;
+			*pdouble = double_val;
+			break;
+		default:
+			fprintf(stderr, "store_item: bad type = %d\n", type);
+			exit(-1);
 	}
 }
 
@@ -2407,7 +2405,7 @@ void add_element(PlyFile *plyfile, char **words, int nwords)
 		plyfile->elems = (PlyElement **)myalloc(sizeof(PlyElement *));
 	else
 		plyfile->elems = (PlyElement **)realloc(plyfile->elems,
-			sizeof(PlyElement *) * (plyfile->nelems + 1));
+												sizeof(PlyElement *) * (plyfile->nelems + 1));
 
 	/* add the new element to the object's list */
 	plyfile->elems[plyfile->nelems] = elem;
@@ -2486,7 +2484,7 @@ void add_property(PlyFile *plyfile, char **words, int nwords)
 		elem->props = (PlyProperty **)myalloc(sizeof(PlyProperty *));
 	else
 		elem->props = (PlyProperty **)realloc(elem->props,
-			sizeof(PlyProperty *) * (elem->nprops + 1));
+											  sizeof(PlyProperty *) * (elem->nprops + 1));
 
 	elem->props[elem->nprops] = prop;
 	elem->nprops++;
@@ -2566,7 +2564,7 @@ lnum  - line number from which memory was requested
 fname - file name from which memory was requested
 ******************************************************************************/
 
-static char *my_alloc(int size, int lnum, char *fname)
+char *my_alloc(int size, int lnum, char *fname)
 {
 	char *ptr;
 

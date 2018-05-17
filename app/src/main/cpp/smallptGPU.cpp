@@ -32,6 +32,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <time.h>
 #include <string.h>
 #include <math.h>
+#include <android/asset_manager.h>
 
 // Jens's patch for MacOS
 #ifdef __APPLE__
@@ -42,12 +43,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "include/CLBVH.h"
 #include "include/KDNode.h"
-#include "include/camera.h"
 #include "include/scene.h"
 #include "include/displayfunc.h"
-#include "include/geom.h"
-#include "include/geomfunc.h"
 #include "include/native-lib.h"
+#include "../assets/sdcard/include/camera.h"
+#include "../assets/sdcard/include/geom.h"
 
 #ifndef __ANDROID__
 #include <GL/glut.h>
@@ -63,10 +63,10 @@ int *specularBounce, *terminated;
 
 static cl_mem rayBuffer, throughputBuffer, specularBounceBuffer, terminatedBuffer, resultBuffer;
 static cl_kernel kernelGen, kernelRadiance, kernelFill;
-char kernelFileName[MAX_FN] = "/storage/emulated/0/Download/kernels/preprocessed_rendering_kernel_exp.cl";
+char kernelFileName[MAX_FN] = "preprocessed_rendering_kernel_exp.cl";
 #else
 static cl_kernel kernel;
-char kernelFileName[MAX_FN] = "/storage/emulated/0/Download/kernels/preprocessed_rendering_kernel.cl";
+char kernelFileName[MAX_FN] = "preprocessed_rendering_kernel.cl";
 #endif
 
 #ifdef CPU_PARTRENDERING
@@ -78,7 +78,7 @@ static cl_mem btnBuffer;
 static cl_mem btlBuffer;
 BVHTreeNode *btn, *btl;
 static cl_kernel kernelRad, kernelBvh, kernelOpt;
-char bvhFileName[MAX_FN] = "/storage/emulated/0/Download/kernels/BVH.cl";
+char bvhFileName[MAX_FN] = "BVH.cl";
 #elif (ACCELSTR == 2)
 static cl_mem kngBuffer;
 static cl_mem knBuffer;
@@ -89,6 +89,10 @@ int szknbuf;
 #endif
 
 #define MAX_STYPE 255
+#define MAX_INCLUDE 255
+#define MAX_ERROR 255
+#define MAX_LOG 255
+//#define PTX_ERROR
 
 /* OpenCL variables */
 static cl_context context;
@@ -237,25 +241,13 @@ void AllocateBuffers() {
 }
 
 char *ReadSources(const char *fileName) {
-	FILE *file = fopen(fileName, "r");
-	if (!file) {
-		LOGE("Failed to open file '%s'\n", fileName);
+	AAsset *as = AAssetManager_open(mgr, fileName, AASSET_MODE_UNKNOWN);
+	if (NULL == as) {
+		LOGE("Failed to open asset '%s'\n", fileName);
 		return NULL;
 	}
 
-	if (fseek(file, 0, SEEK_END)) {
-		LOGE("Failed to seek file '%s'\n", fileName);
-		return NULL;
-	}
-
-	long size = ftell(file);
-	if (size == 0) {
-		LOGE("Failed to check position on file '%s'\n", fileName);
-		return NULL;
-	}
-
-	rewind(file);
-
+	off_t size = AAsset_getLength(as);
 	char *src = (char *)malloc(sizeof(char) * size + 1);
 	if (!src) {
 		LOGE("Failed to allocate memory for file '%s'\n", fileName);
@@ -263,14 +255,15 @@ char *ReadSources(const char *fileName) {
 	}
 
 	LOGI("Reading file '%s' (size %ld bytes)\n", fileName, size);
-	size_t res = fread(src, 1, sizeof(char) * size, file);
+	int res = AAsset_read (as, src, size);
 	if (res != sizeof(char) * size) {
-		//LOGE("Failed to read file '%s' (read %lu)\n Content: %s\n", fileName, res, src);
-		//return NULL;
+		LOGE("Failed to read file '%s' (read %lu)\n Content: %s\n", fileName, res, src);
+		return NULL;
 	}
-	src[res] = '\0'; /* NULL terminated */
 
-	fclose(file);
+	AAsset_close(as);
+
+	src[res] = '\0'; /* NULL terminated */
 
 	return src;
 }
@@ -470,7 +463,12 @@ void SetUpOpenCL() {
 	program = clCreateProgramWithSource(context, 1, &sources, NULL, &status);
 	clErrchk(status);
 
-	status = clBuildProgram(program, 1, devices, "-I. -I/storage/emulated/0/Download/kernels/", NULL, NULL);
+	char strInclude[MAX_INCLUDE];
+	strcpy(strInclude, "-DGPU_KERNEL -I. -I");
+	strcat(strInclude, strResPath);
+	strcat(strInclude, "/include");
+
+	status = clBuildProgram(program, 1, devices, strInclude, NULL, NULL);
 	clErrchk(status);
 
 	if (status != CL_SUCCESS) {
@@ -483,7 +481,7 @@ void SetUpOpenCL() {
 		clErrchk(clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, retValSize, buildLog, NULL));
 		
         buildLog[retValSize] = '\0';		
-#if 0
+#ifdef PTX_ERROR
 		// Query binary (PTX file) size
 		size_t bin_sz;
 		status = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &bin_sz, NULL);
@@ -505,7 +503,11 @@ void SetUpOpenCL() {
 #endif
 		LOGE("OpenCL Programm Build Log: %s\n", buildLog);
 
-		FILE *fp = fopen("/storage/emulated/0/Download/kernels/error_renderingkernel.txt", "wt");
+		char strError[MAX_ERROR];
+		strcpy(strError, strResPath);
+		strcat(strError, "/error_renderingkernel.txt");
+
+		FILE *fp = fopen(strError, "wt");
 		fwrite(buildLog, sizeof(char), retValSize + 1, fp);
 		fclose(fp);
 
@@ -536,7 +538,12 @@ void SetUpOpenCL() {
 	program = clCreateProgramWithSource(context, 1, &sourcesBvh, NULL, &status);
 	clErrchk(status);
 
-	status = clBuildProgram(program, 1, devices, "-I. -I/storage/emulated/0/Download/kernels/", NULL, NULL);
+    char strInclude[MAX_INCLUDE];
+    strcpy(strInclude, "-DGPU_KERNEL -I. -I");
+    strcat(strInclude, strResPath);
+    strcat(strInclude, "/include");
+
+	status = clBuildProgram(program, 1, devices, strInclude, NULL, NULL);
 	clErrchk(status);
 
 	if (status != CL_SUCCESS) {
@@ -571,7 +578,11 @@ void SetUpOpenCL() {
 #endif
 		LOGE("OpenCL Programm Build Log: %s\n", buildLog);
 
-		FILE *fp = fopen("/storage/emulated/0/Download/kernels/error_BVH.txt", "wt");
+		char strError[MAX_ERROR];
+		strcpy(strError, strResPath);
+		strcat(strError, "/error_BVH.txt");
+
+		FILE *fp = fopen(strError, "wt");
 		fwrite(buildLog, sizeof(char), retValSize + 1, fp);
 		fclose(fp);
 
@@ -1051,7 +1062,11 @@ unsigned int *DrawFrame() {
 	clErrchk(clEnqueueReadBuffer(commandQueue, debugBuffer1, CL_TRUE, 0, sizeof(int) * shapeCnt, debug1, 0, NULL, NULL));
 	clErrchk(clEnqueueReadBuffer(commandQueue, debugBuffer2, CL_TRUE, 0, 6 * sizeof(float) * shapeCnt, debug2, 0, NULL, NULL));
 
-    FILE *f = fopen("/storage/emulated/0/Download/images/intersections.txt", "wt"); // Write image to PPM file.
+	char strLog[MAX_LOG];
+	strcpy(strLog, strResPath);
+	strcat(strLog, "/intersections.txt");
+
+    FILE *f = fopen(strLog, "wt"); // Write image to PPM file.
 	for(int i = 0; i < shapeCnt; i++) {
 		fprintf(f, "%d, ", debug1[i]);
 	}

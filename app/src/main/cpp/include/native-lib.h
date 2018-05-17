@@ -5,7 +5,8 @@
 #ifndef PTGPU_NATIVE_LIB_H
 #define PTGPU_NATIVE_LIB_H
 
-#include "camera.h"
+#include <android/asset_manager.h>
+#include "../../assets/sdcard/include/camera.h"
 
 #if defined(__ANDROID__)
 #include <android/log.h>
@@ -28,6 +29,8 @@ extern char kernelFileName[];
 extern char bvhFileName[];
 extern int pixelCount;
 extern Camera camera;
+extern AAssetManager *mgr;
+extern char *strResPath;
 
 extern void AddWallLight();
 extern void SetUpOpenCL();

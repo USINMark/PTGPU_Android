@@ -1,27 +1,6 @@
-//VS2017community���� �ۼ�,preprocessed_rendering_kernel.cl�� �����ϱ� ���� ������
-//kdtree���� ���� -https://www.youtube.com/watch?v=Z4dNLvno-EY
 
 #include "include/KDNode.h"
-
-inline float min2(float a, float b)
-{
-	return (a < b) ? a : b;
-}
-
-inline float max2(float a, float b)
-{
-	return (a > b) ? a : b;
-}
-
-inline float min3(float a, float b, float c)
-{
-	return min2(min2(a, b), c);
-}
-
-inline float max3(float a, float b, float c)
-{
-	return max2(max2(a, b), c);
-}
+#include "include/AccelCommon.h"
 
 Bound KDTree::getBound(Sphere s)
 {
@@ -103,7 +82,6 @@ int KDTree::getLongestAxis(Bound b)
 	return 2;
 }
 
-// �ﰢ������ ���� KDTREE ���� 
 KDTreeNode* KDTree::build(std::vector<Shape *> s, int depth)
 {
 	KDTreeNode* node = new KDTreeNode(m_pois, m_poiCnt);
@@ -160,7 +138,7 @@ KDTreeNode* KDTree::build(std::vector<Shape *> s, int depth)
 	for (long i = 0; i < s.size(); i++)
 	{
 		switch (axis) {
-		case 0://�߾� ������ ũ�� ������ Ʈ����, �ƴϸ� ���� Ʈ���� �ִ´�
+		case 0:
 			midpoint.x >= getMidpoint(*s[i]).x ? right_shapes.push_back(s[i]) : left_shapes.push_back(s[i]);
 			break;
 		case 1:

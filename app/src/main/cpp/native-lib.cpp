@@ -1,14 +1,19 @@
 #include <jni.h>
 #include <string>
 #include <string.h>
+#include <android/asset_manager.h>
+#include <android/asset_manager_jni.h>
 
 #include "include/displayfunc.h"
 #include "include/native-lib.h"
-#include "include/geom.h"
+#include "../assets/sdcard/include/geom.h"
 
 #ifdef __cplusplus
 //extern "C" {
 #endif
+
+AAssetManager   *mgr;
+char *strResPath;
 
 extern bool Read(char *fileName);
 
@@ -21,7 +26,7 @@ JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_stringFromJNI(
 }
 
 extern "C" JNIEXPORT void
-JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_initSmallPtGPU(JNIEnv* env, jobject /* this */, jint u, jint f, jstring k, jint w, jint h, jstring s)
+JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_initSmallPtGPU(JNIEnv* env, jobject /* this */, jint u, jint f, jstring k, jint w, jint h, jstring s, jstring r, jobject assetManager)
 {
     useGPU = u;
     forceWorkSize = f;
@@ -30,7 +35,17 @@ JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_initSmallPtGPU(JNIEnv* env, job
     width = w;
     height = h;
 
-    if (Read((char *)env->GetStringUTFChars(s, NULL))) {
+    mgr = AAssetManager_fromJava(env, assetManager);
+
+    char *strFilePath = (char *)env->GetStringUTFChars(s, NULL);
+    strResPath = (char *)env->GetStringUTFChars(r, NULL);
+    char *strFullPath = (char *)malloc(strlen(strFilePath) + strlen(strResPath) + 1);
+
+    strcpy(strFullPath, strResPath);
+    strcat(strFullPath, "/");
+    strcat(strFullPath, strFilePath);
+
+    if (Read(strFullPath)) {
         AddWallLight();
 
 #if (ACCELSTR == 0)
@@ -51,7 +66,7 @@ extern "C" JNIEXPORT void
 JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_reinitCamera(JNIEnv* env, jobject /* this */, jfloat origx, jfloat origy, jfloat origz, jfloat targx, jfloat targy, jfloat targz)
 {
     camera.orig.x = origx,camera.orig.y = origy, camera.orig.z = origz;
-    camera.target.x =targx, camera.target.y =targy, camera.target.z = targz;
+    camera.target.x = targx, camera.target.y = targy, camera.target.z = targz;
 
     ReInit(0);
 }

@@ -24,7 +24,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _GEOMFUNC_H
 #define	_GEOMFUNC_H
 
-#include "geom.h"
+#include "../../assets/sdcard/include/geom.h"
 #include "simplernd.h"
 
 #ifndef SMALLPT_GPU

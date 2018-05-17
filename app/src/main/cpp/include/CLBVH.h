@@ -8,10 +8,10 @@
 #endif
 #include <stdlib.h>
 
-#include "geom.h"
-#include "BVHTree.h"
 #include "CL/cl.h"
 #include "native-lib.h"
+#include "../../assets/sdcard/include/geom.h"
+#include "../../assets/sdcard/include/BVHTree.h"
 
 typedef struct
 {

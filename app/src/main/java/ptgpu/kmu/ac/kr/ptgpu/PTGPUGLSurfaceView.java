@@ -14,7 +14,7 @@ public class PTGPUGLSurfaceView extends GLSurfaceView {
     public PTGPUGLSurfaceView(Context context) {
         super(context);
 
-        pgr = new PTGPURenderer();
+        pgr = new PTGPURenderer(context);
         setRenderer(pgr);
     }
 }

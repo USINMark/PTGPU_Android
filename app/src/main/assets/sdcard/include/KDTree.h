@@ -1,4 +1,6 @@
 
+#include "geom.h"
+
 typedef struct KDNodeGPU {
 	int leaf;
 	int nLeft, nRight, nParent;

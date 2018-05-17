@@ -11,8 +11,8 @@ android {
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                cppFlags "-DGPU_KERNEL -DSMALLPT_GPU -D__ANDROID__ -I. -Iinclude -Llib -llog -lOpenCL"
-                cFlags "-DGPU_KERNEL -DSMALLPT_GPU -D__ANDROID__ -I. -Iinclude -Llib -llog -lOpenCL"
+                cppFlags "-DSMALLPT_GPU -D__ANDROID__ -I. -Iinclude -Llib -landroid -llog -lOpenCL"
+                cFlags "-DSMALLPT_GPU -D__ANDROID__ -I. -Iinclude -Llib -landroid -llog -lOpenCL"
             }
         }
         ndk {

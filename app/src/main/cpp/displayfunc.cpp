@@ -44,11 +44,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         Unsupported Platform !!!
 #endif
 
-#include "include/camera.h"
-#include "include/geom.h"
 #include "include/displayfunc.h"
 #include "include/native-lib.h"
-			
+#include "../assets/sdcard/include/camera.h"
+#include "../assets/sdcard/include/geom.h"
+
 extern void ReInit(const int);
 extern void ReInitScene();
 extern void UpdateRendering();

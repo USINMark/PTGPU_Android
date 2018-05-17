@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #endif
 
-#include "geom.h"
-#include "KDTree.h"
+#include "../../assets/sdcard/include/KDTree.h"
+#include "../../assets/sdcard/include/geom.h"
 
 #define MAX_KDTREEDEPTH 25
 

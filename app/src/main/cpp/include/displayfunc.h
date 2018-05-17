@@ -33,7 +33,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //#include <GL/glut.h>
 #endif
 
-#include "vec.h"
+#include "../../assets/sdcard/include/vec.h"
 
 #define MAX_WALLSUN 9
 

@@ -1,6 +1,7 @@
 package ptgpu.kmu.ac.kr.ptgpu;
 
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.opengl.GLSurfaceView;
@@ -37,6 +38,8 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
     /** The buffer holding the texture coordinates */
     private FloatBuffer textureBuffer;
 
+    Context context;
+
     /** The initial vertex definition */
     private float vertices[] = {
             -1.0f, -1.0f, 0.0f,     //Bottom Left
@@ -58,7 +61,7 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
      * which is packaged with this application.
      */
     public native String stringFromJNI();
-    public native void initSmallPtGPU(int u, int f, String k, int w, int h, String s);
+    public native void initSmallPtGPU(int u, int f, String k, int w, int h, String s, String r, AssetManager asset);
     public native int[] updateRendering();
     public native void finishRendering();
 
@@ -68,8 +71,9 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
         System.loadLibrary("native-lib");
     }
 
-    public PTGPURenderer()
+    public PTGPURenderer(Context context)
     {
+        this.context = context;
     }
 
     public void onSurfaceCreated(GL10 gl, EGLConfig config)
@@ -90,7 +94,7 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
         textureBuffer.put(texture);
         textureBuffer.position(0);
 
-        initSmallPtGPU(1, 128, Environment.getExternalStorageDirectory()+"/Download/kernels/preprocessed_rendering_kernel.cl", texW, texH, Environment.getExternalStorageDirectory()+"/Download/scenes/ant.ply");
+        initSmallPtGPU(1, 128, "kernels/preprocessed_rendering_kernel.cl", texW, texH, "scenes/ant.ply", Environment.getExternalStorageDirectory() + "/" + context.getPackageName(), context.getAssets());
 
         try {
             gl.glEnable(GL10.GL_TEXTURE_2D);                    //Enable Texture Mapping

@@ -33,6 +33,8 @@ WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 #ifndef __PLY_H__
 #define __PLY_H__
 
+#include <android/asset_manager.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
