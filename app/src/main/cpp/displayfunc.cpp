@@ -85,7 +85,7 @@ bool ReadScene(const char *fileName) {
 
 	FILE *f = fopen(fileName, "r");
 	if (!f) {
-		LOGE("Failed to open file: %s, Errorno: %d\n", fileName, errno);
+		LOGE("Failed to open file: %s\n", fileName);
 		return false;
 	}
 

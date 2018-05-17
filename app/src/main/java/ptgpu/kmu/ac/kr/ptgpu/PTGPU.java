@@ -1,11 +1,13 @@
 package ptgpu.kmu.ac.kr.ptgpu;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
-import android.os.Environment;
 import android.os.Bundle;
+import android.os.Environment;
+import android.support.annotation.NonNull;
 import android.view.WindowManager;
-import android.widget.TextView;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -14,6 +16,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public class PTGPU extends Activity {
+    private static final int REQUEST_READ_WRITE_EXTERNAL_STORAGE = 1;
+
     public String copyDirorfileFromAssetManager(String arg_assetDir, String arg_destinationDir) throws IOException
     {
         File sd_path = Environment.getExternalStorageDirectory();
@@ -77,6 +81,30 @@ public class PTGPU extends Activity {
         return path;
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        switch (requestCode) {
+            case REQUEST_READ_WRITE_EXTERNAL_STORAGE:
+                {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // permission was granted, yay! Do the
+                    // contacts-related task you need to do.
+                    pgv = new PTGPUGLSurfaceView(this);
+                    setContentView(pgv);
+                } else {
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                    System.exit(0);
+                }
+
+                return;
+            }
+        }
+    }
+
     public void createDir(File dir) throws IOException
     {
         if (dir.exists())
@@ -127,8 +155,17 @@ public class PTGPU extends Activity {
             e.printStackTrace();
         }
 
-        pgv = new PTGPUGLSurfaceView(this);
-        setContentView(pgv);
+        // Here, thisActivity is the current activity
+        if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+
+            // No explanation needed, we can request the permission.
+            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_READ_WRITE_EXTERNAL_STORAGE);
+        }
+        else {
+            pgv = new PTGPUGLSurfaceView(this);
+            setContentView(pgv);
+        }
      }
 
     /**
