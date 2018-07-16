@@ -40,7 +40,7 @@
 extern "C" {
 #endif
 
-#if defined(_WIN32)
+#if defined(WIN32)
     #define CL_API_ENTRY
     #define CL_API_CALL     __stdcall
     #define CL_CALLBACK     __stdcall
@@ -97,7 +97,7 @@ extern "C" {
             #define CL_EXT_SUFFIX__VERSION_1_1_DEPRECATED __attribute__((deprecated))
             #define CL_EXT_PREFIX__VERSION_1_1_DEPRECATED    
         #endif
-    #elif defined(_WIN32)
+    #elif defined(WIN32)
         #ifdef CL_USE_DEPRECATED_OPENCL_1_0_APIS
             #define CL_EXT_SUFFIX__VERSION_1_0_DEPRECATED    
             #define CL_EXT_PREFIX__VERSION_1_0_DEPRECATED    
@@ -122,7 +122,7 @@ extern "C" {
     #endif
 #endif
 
-#if (defined (_WIN32) && defined(_MSC_VER))
+#if (defined (WIN32) && defined(_MSC_VER))
 
 /* scalar types  */
 typedef signed   __int8         cl_char;
@@ -485,7 +485,7 @@ typedef unsigned int cl_GLenum;
 #elif defined( __GNUC__) && ! defined( __STRICT_ANSI__ )
 #define  __CL_HAS_ANON_STRUCT__ 1
 #define  __CL_ANON_STRUCT__ __extension__
-#elif defined( _WIN32) && defined(_MSC_VER)
+#elif defined( WIN32) && defined(_MSC_VER)
     #if _MSC_VER >= 1500
    /* Microsoft Developer Studio 2008 supports anonymous structs, but
     * complains by default. */
@@ -504,7 +504,7 @@ typedef unsigned int cl_GLenum;
 /* Define alignment keys */
 #if defined( __GNUC__ )
     #define CL_ALIGNED(_x)          __attribute__ ((aligned(_x)))
-#elif defined( _WIN32) && (_MSC_VER)
+#elif defined( WIN32) && (_MSC_VER)
     /* Alignment keys neutered on windows because MSVC can't swallow function arguments with alignment requirements     */
     /* http://msdn.microsoft.com/en-us/library/373ak2y1%28VS.71%29.aspx                                                 */
     /* #include <crtdefs.h>                                                                                             */
@@ -1378,7 +1378,7 @@ typedef union
 
 #undef __CL_HAS_ANON_STRUCT__
 #undef __CL_ANON_STRUCT__
-#if defined( _WIN32) && defined(_MSC_VER)
+#if defined( WIN32) && defined(_MSC_VER)
     #if _MSC_VER >=1500
     #pragma warning( pop )
     #endif

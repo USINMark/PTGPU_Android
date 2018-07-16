@@ -45,7 +45,7 @@ extern "C" {
 typedef cl_uint             cl_dx9_media_adapter_type_khr;
 typedef cl_uint             cl_dx9_media_adapter_set_khr;
     
-#if defined(_WIN32)
+#if defined(WIN32)
 #include <d3d9.h>
 typedef struct _cl_dx9_surface_info_khr
 {

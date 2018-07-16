@@ -94,7 +94,7 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
         textureBuffer.put(texture);
         textureBuffer.position(0);
 
-        initSmallPtGPU(1, 128, "kernels/preprocessed_rendering_kernel.cl", texW, texH, "scenes/ant.ply", Environment.getExternalStorageDirectory() + "/" + context.getPackageName(), context.getAssets());
+        initSmallPtGPU(1, 128, "kernels/rendering_kernel.cl", texW, texH, "scenes/obj-model.txt", Environment.getExternalStorageDirectory() + "/" + context.getPackageName(), context.getAssets());
 
         try {
             gl.glEnable(GL10.GL_TEXTURE_2D);                    //Enable Texture Mapping
@@ -124,7 +124,7 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
         Bitmap bitmap = Bitmap.createBitmap(arr_pixels, texW, texH, Bitmap.Config.ARGB_8888);
 
         if (bFile) {
-            String strFN = Environment.getExternalStorageDirectory()+"/Download/images/image_" + new Integer(inv).toString() + ".png";
+            String strFN = Environment.getExternalStorageDirectory() + "/" + context.getPackageName() + "/images/image_" + new Integer(inv).toString() + ".png";
             FileOutputStream out = null;
 
             try {

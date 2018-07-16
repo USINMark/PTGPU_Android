@@ -20,9 +20,9 @@ add_library( # Sets the name of the library.
              src/main/cpp/native-lib.cpp
              src/main/cpp/displayfunc.cpp
              src/main/cpp/smallptGPU.cpp
-             src/main/cpp/CLBVH.cpp
-             src/main/cpp/plyfile.c
-             src/main/cpp/KDNode.cpp)
+             src/main/cpp/accel/CLBVH.cpp
+             src/main/cpp/accel/KDTree.cpp
+             src/main/cpp/plyfile/plyfile.c)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by

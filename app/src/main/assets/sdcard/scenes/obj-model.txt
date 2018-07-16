@@ -1,0 +1,62 @@
+gamma 2.2  sky1 0 0 0  sky2 0 0 0
+camera 0 45 205.6  0 44.957388 204.6
+materials 0
+objects 12
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/plane-x.obj  90 69 0   -1 70 60  0 0 0  0.25 .25 0.75  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/plane-x.obj -89 69 0    1 70 60  0 0 0  0.75 .25 0.25  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/plane-y.obj  0  0 0    100 -1 100  0 0 0  0.75 .75 0.75  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/cube.obj  0 10 0  16 16 16  0 0 0  0.4 0.7 0.1  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/plane-y.obj  0 100 0   100 1 100  0 0 0  0.75 .75 0.75  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/plane-z.obj  0 70 -60   100 75 1  0 0 0  0.75 .75 0.75  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/table.obj  27 6 47  16 16 16  0 0 0  0.5 0.2 0  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/cube.obj 24 30 45  7 7 7  0 0 0  1 0.9 1  0
+triangle  10 98 10  -10 98 -10  10 98 -10  20 20 20  0 0 0  0
+triangle  -10 98 10  -10 98 -10  10 98 10  20 20 20  0 0 0  0
+sphere 5  -24 5 44  0.0 0.0 0.0  0.9 0.9 0.9 1
+sphere 5  -50 5 44  0.0 0.0 0.0  0.9 0.9 0.9 2
+
+# Teapot
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/teapot.obj 21 21 40  4 4 4  0 0 0  1 0.9 1  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/teapot_my.obj 23 21 44  1.0 1.0 1.0  0 0 0  1 0.9 1  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/teapot-800.obj 23 22 44  2.5 2.5 2.5  0 0 0  1 0.9 1  0
+
+# Monkey
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/monkey.obj 24 28 44  13 13 13  0 0 0  1 0.9 1  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/half-monkey.obj 24 28 45  8 8 8  0 0 0  1 0.9 1  0
+
+# Bunny
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/bun_zipper_res4.obj 24 23 44  2 2 2  0 0 0  1 0.9 1  0
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/bun_zipper_res3_reduced.obj 24 23 44  1 1 1  0 0 0  1 0.9 1  0
+
+# Cube
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/cube.obj 24 30 45  7 7 7  0 0 0  1 0.9 1  0
+
+# Ant
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/ant.obj 29 18 44  0.8 0.8 0.8  0 0 0  1 0.9 1  0
+
+# Knot
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/knot.obj 29 22.5 44  0.1 0.1 0.1  0 0 0  1 0.9 1  0
+
+# Ironman
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/IronMan_resized_reduced.obj 24 28 45  8 8 8  0 0 0  1 0.9 1  0
+
+# Happy Budha
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/happy_vrip_res4.obj 29 18 44  0.8 0.8 0.8  0 0 0  1 0.9 1  0
+
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/d20.obj  27 24 47  2 2 2  0 0 0  0.7 0.7 0.4  2
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/d20.obj  31 24 44  2 2 2  0 0 0  0.3 0.7 0.6  1
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/d20.obj  23.5 24 47.5  2 2 2  0 0 0  0.7 0.2 0.7  0
+
+# light: sphere with luminaire
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/light.obj  0 88 0  11 6 11  0 0 0  1 1 0.5  1
+sphere 6  0 88 0  12 12 12  0 0 0  0
+
+# light: simple sphere
+sphere 7      0 80 0      12 12 12  0 0 0          0
+
+# light: a plane
+model /storage/emulated/0/ptgpu.kmu.ac.kr.ptgpu/scenes/models/plane-y-down.obj  0 99 20  10 1 10  12 12 12  0 0 0  0
+
+# light: a square
+triangle  10 99 10  10 99 -10  -10 99 -10  1 1 1  0 0 0  0
+triangle  -10 99 10  10 99 10  -10 99 -10  1 1 1  0 0 0  0
