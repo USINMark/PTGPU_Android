@@ -3,9 +3,7 @@ package ptgpu.kmu.ac.kr.ptgpu;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.opengl.GLSurfaceView;
-import android.opengl.GLSurfaceView.Renderer;
 import android.opengl.GLU;
 import android.opengl.GLUtils;
 import android.os.Environment;
@@ -19,7 +17,6 @@ import java.nio.FloatBuffer;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
-import android.opengl.GLES20;
 
 /**
  * Created by user on 2017-12-23.
@@ -64,6 +61,8 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
     public native void initSmallPtGPU(int u, int f, String k, int w, int h, String s, String r, AssetManager asset);
     public native int[] updateRendering();
     public native void finishRendering();
+    public native void touchFunc(int deltax, int deltay);
+    public native void reinitCamera(float origx, float origy, float origz, float targx, float targy, float targz);
 
     // Used to load the 'native-lib' library on application startup.
     static
@@ -74,6 +73,16 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
     public PTGPURenderer(Context context)
     {
         this.context = context;
+    }
+
+    void onTouch(int deltax, int deltay)
+    {
+        touchFunc(deltax, deltay);
+    }
+
+    void ReinitCamera(float origx, float origy, float origz, float targx, float targy, float targz)
+    {
+        reinitCamera(origx, origy, origz, targx, targy, targz);
     }
 
     public void onSurfaceCreated(GL10 gl, EGLConfig config)
@@ -103,7 +112,7 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
             gl.glGenTextures(1, textures, 0);
         } catch (Exception e) {
             // TODO Auto-generated catch block
-            Log.d("Excption at the onSurfaceCreated",e.getMessage());
+            Log.d("Exception at the onSurfaceCreated",e.getMessage());
         }
 
         Log.d("PTGPURenderer", "End of onSurfaceCreated");
@@ -182,7 +191,7 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
             Log.e("PTGPURenderer", "Drawing time: "+new Integer(diff).toString()+" msec");
         } catch (Exception e) {
             // TODO Auto-generated catch block
-            Log.e("Excption at the onDrawFrame",e.getMessage());
+            Log.e("Exception at the onDrawFrame",e.getMessage());
         }
 
         Log.i("PTGPURenderer", "End of onDrawFrame, "+String.valueOf(inv));
@@ -201,16 +210,14 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
 
             gl.glMatrixMode(GL10.GL_PROJECTION); //Select The Projection Matrix
             gl.glLoadIdentity();//Reset The Projection Matrix
-
-            float ratio = (float) w / h;
-            GLU.gluPerspective(gl, 45.0f, ratio, 0.1f, 100.0f);
+            GLU.gluPerspective(gl, 45.0f, (float) w / h, 0.1f, 100.0f);
 
             gl.glMatrixMode(GL10.GL_MODELVIEW);//Select The Modelview Matrix
             gl.glLoadIdentity();//Reset The Modelview Matrix
             gl.glTranslatef(0.0f, 0.0f, -3.0f);
         } catch (Exception e) {
             // TODO Auto-generated catch block
-            Log.d("Excption at the onSurfaceChanged",e.getMessage());
+            Log.d("Exception at the onSurfaceChanged",e.getMessage());
         }
         Log.e("PTGPURenderer", "End of onSurfaceChanged");
     }

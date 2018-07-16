@@ -73,6 +73,12 @@ JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_reinitCamera(JNIEnv* env, jobje
     ReInit(0);
 }
 
+extern "C" JNIEXPORT void
+JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_touchFunc(JNIEnv* env, jobject /* this */, int deltax, int deltay)
+{
+    touchFunc(deltax, deltay);
+}
+
 extern "C" JNIEXPORT jintArray
 JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_updateRendering(JNIEnv* env, jobject /* this */) {
     unsigned int *pixels = DrawFrame();

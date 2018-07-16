@@ -2,6 +2,7 @@ package ptgpu.kmu.ac.kr.ptgpu;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.os.Bundle;
@@ -166,6 +167,7 @@ public class PTGPU extends Activity {
             pgv = new PTGPUGLSurfaceView(this);
             setContentView(pgv);
         }
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
      }
 
     /**
