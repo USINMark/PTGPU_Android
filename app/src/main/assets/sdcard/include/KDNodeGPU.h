@@ -2,15 +2,15 @@
 #define KDNODEGPU_H
 
 typedef struct KDNodeGPU {
-	int leaf;
-	int nLeft, nRight, nParent;
+	short leaf;
+	short nLeft, nRight, nParent;
 
 	Bound bound;
 	
-	int min;
-	int max;
+	short min;
+	short max;
 
-	int nShape;
+	//int nShape;
 } KDNodeGPU;
 
 #endif //KDNODEGPU_H

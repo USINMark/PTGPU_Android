@@ -32,7 +32,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MAX_DEPTH 6
 #define MAX_SPP 6
 
-#define ACCELSTR 0 //2 //0 is no accel, 1 is BVH and 2 is KDTREE
+#define ACCELSTR 2 //2 //0 is no accel, 1 is BVH and 2 is KDTREE
 //#define EXP_KERNEL
 //#define CPU_PARTRENDERING
 //#define DEBUG_INTERSECTIONS
@@ -58,7 +58,7 @@ typedef struct {
 } Poi;
 
 typedef struct {
-	int p1, p2, p3;
+	Vec p1, p2, p3;
 } Triangle;
 
 typedef enum tagType { SPHERE, TRIANGLE } Type;
