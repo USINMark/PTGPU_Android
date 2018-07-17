@@ -1058,7 +1058,7 @@ void GenerateCameraRay(
  const float r2 = GetRandom(seed0, seed1) - .5f;
  const float kcx = (x + r1) * invWidth - .5f;
  const float kcy = (y + r2) * invHeight - .5f;
- 
+   
  Vec rdir;
   vinit(rdir,
  		camera->x.x * kcx + camera->y.x * kcy + camera->dir.x,
@@ -1144,9 +1144,9 @@ __constant
   colors[i].z = (colors[i].z * k1 + r.z) * k2;
  }
 
- pixels[y * width + x] = ((int)(pow(clamp(colors[i].x, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) |
+ pixels[y * width + x] = (((int)(pow(clamp(colors[i].x, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) << 16) |
    (((int)(pow(clamp(colors[i].y, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) << 8) |
-   (((int)(pow(clamp(colors[i].z, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) << 16) | 0xff000000;
+   (((int)(pow(clamp(colors[i].z, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f))) | 0xff000000;
 
  seedsInput[gid2] = seed0;
  seedsInput[gid2 + 1] = seed1;
@@ -1224,9 +1224,9 @@ __constant
   colors[i].z = (colors[i].z * k1 + r.z) * k2;
  }
 
- pixels[(y + ywithinbox) * twidth + x + xwithinbox] = ((int)(pow(clamp(colors[i].x, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) |
+ pixels[(y + ywithinbox) * twidth + x + xwithinbox] = (((int)(pow(clamp(colors[i].x, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) << 16) |
    (((int)(pow(clamp(colors[i].y, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) << 8) |
-   (((int)(pow(clamp(colors[i].z, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f)) << 16) | 0xff000000;
+   (((int)(pow(clamp(colors[i].z, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f))) | 0xff000000;   
 
  seedsInput[sgid2] = seed0;
  seedsInput[sgid2 + 1] = seed1;
