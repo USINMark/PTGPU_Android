@@ -80,7 +80,7 @@ static cl_mem btnBuffer;
 static cl_mem btlBuffer;
 BVHNodeGPU *btn, *btl;
 static cl_kernel kernelRad, kernelBvh, kernelOpt;
-char bvhFileName[MAX_FN] = "BVH.cl";
+char bvhFileName[MAX_FN] = "kernels/BVH.cl";
 #elif (ACCELSTR == 2)
 static cl_mem kngBuffer;
 static cl_mem knBuffer;
@@ -541,7 +541,7 @@ void SetUpOpenCL() {
 	program = clCreateProgramWithSource(context, 1, &sourcesBvh, NULL, &status);
 	clErrchk(status);
 
-    char strInclude[MAX_INCLUDE];
+    //char strInclude[MAX_INCLUDE];
     strcpy(strInclude, "-DGPU_KERNEL -I. -I");
     strcat(strInclude, strResPath);
     strcat(strInclude, "/include");
