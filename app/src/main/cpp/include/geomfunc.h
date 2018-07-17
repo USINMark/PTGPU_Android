@@ -200,12 +200,11 @@ __constant
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	KDNodeGPU *kng,
+	KDNodeGPU *kng, int kngCnt,
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	int *kn,
-	int szkng, int szkn,
+	int *kn, int knCnt,
 #endif
 #ifdef GPU_KERNEL
 	__constant
@@ -478,12 +477,11 @@ void RadianceOnePathTracing(
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	KDNodeGPU *kng,
+	KDNodeGPU *kng, int kngCnt,
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	int *kn,
-	int szkng, int szkn,
+	int *kn, int knCnt,
 #endif
 	Ray *currentRay,
 	unsigned int *seed0, unsigned int *seed1, 
@@ -496,7 +494,7 @@ void RadianceOnePathTracing(
 #if (ACCELSTR == 1)
 		btn, btl,
 #elif (ACCELSTR == 2)
-		kng, kn, szkng, szkn, 
+		kng, kngCnt, kn, knCnt,
 #endif
 		currentRay, &t, &id)) {
 		*result = *rad;
@@ -686,12 +684,11 @@ void RadiancePathTracing(
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	KDNodeGPU *kng,
+	KDNodeGPU *kng, int kngCnt,
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	int *kn,
-	int szkng, int szkn,
+	int *kn, int knCnt,
 #endif
 	const Ray *startRay,
 	unsigned int *seed0, unsigned int *seed1,
@@ -714,7 +711,7 @@ void RadiancePathTracing(
 #if (ACCELSTR == 1)
 			btn, btl, 
 #elif (ACCELSTR == 2)
-			kng, kn, szkng, szkn, 
+			kng, kngCnt, kn, knCnt,
 #endif
 			&currentRay, seed0, seed1, depth, &rad, &throughput, &specularBounce, &terminated, result);
 
@@ -745,12 +742,11 @@ void RadianceDirectLighting(
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	KDNodeGPU *kng,
+	KDNodeGPU *kng, int kngCnt,
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	int *kn,
-	int szkng, int szkn,
+	int *kn, int knCnt,
 #endif
 #ifdef GPU_KERNEL
 	__constant
@@ -777,7 +773,7 @@ void RadianceDirectLighting(
 #if (ACCELSTR == 1)
 			btn, btl,
 #elif (ACCELSTR == 2)
-			kng, kn, szkng, szkn, 
+			kng, kngCnt, kn, knCnt,
 #endif
 			&currentRay, &t, &id)) {
 			*result = rad; /* if miss, return */

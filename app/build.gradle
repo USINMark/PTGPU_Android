@@ -11,8 +11,8 @@ android {
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                cppFlags "-fno-exceptions -DSMALLPT_GPU -D__ANDROID__ -I. -I../include -Iinclude -Llib -landroid -llog -lOpenCL"
-                cFlags "-fno-exceptions -DSMALLPT_GPU -D__ANDROID__ -I. -I../include -Iinclude -Llib -landroid -llog -lOpenCL"
+                cppFlags "-fopenmp -fno-exceptions -D__ANDROID__ -I. -I../include -Iinclude -Llib -landroid -llog -lOpenCL"
+                cFlags "-fopenmp -fno-exceptions -D__ANDROID__ -I. -I../include -Iinclude -Llib -landroid -llog -lOpenCL"
             }
         }
         ndk {

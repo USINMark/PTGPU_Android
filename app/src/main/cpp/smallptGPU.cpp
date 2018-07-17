@@ -679,7 +679,7 @@ void DrawBox(int xstart, int ystart, int bwidth, int bheight, int twidth, int th
 #if (ACCELSTR == 1)
 				btn, btl,
 #elif (ACCELSTR == 2)
-				pkngbuf, pknbuf, szkngbuf, szknbuf,
+				pkngbuf, kngCnt, pknbuf, knCnt,
 #endif
 				&ray, &seeds[i2], &seeds[i2 + 1], &r);
 
@@ -856,6 +856,17 @@ unsigned int *DrawAllBoxes(int bwidth, int bheight, float *rCPU, bool bFirst) {
 		setTotalTime, kernelTotalTime, cpuTotalTime, rwTotalTime, elapsedTime, currentSample, sampleSec / 1000.f);
 
 	return pixels;
+}
+
+unsigned int *DrawFrame()
+{
+    static float rCPU = 1.0f;
+    static bool first = true;
+
+    unsigned int *pPixels = DrawAllBoxes(160, 120, &rCPU, first);
+    first = false;
+
+    return pPixels;
 }
 #else
 #ifdef EXP_KERNEL
