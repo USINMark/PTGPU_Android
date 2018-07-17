@@ -34,9 +34,11 @@ inline void swap(float *a, float *b)
 }
 
 float SphereIntersect(
-
+#ifdef __ANDROID__
+__global
+#else
 __constant
-
+#endif
  const Sphere *s,
  const Ray *r) {
  Vec op;
@@ -65,9 +67,11 @@ __constant
 
 //Written in the paper "Fast, Minimum Storage Ray/ Triangle Intersection".
 float TriangleIntersect(
-
+#ifdef __ANDROID__
+__global
+#else
 __constant
-
+#endif
 	const Triangle *tr,
 	const Ray *r) { 
 	/* returns distance, 0 if nohit */
@@ -198,9 +202,11 @@ bool intersection_bound_test(const Ray r, Bound bound
 }
 
 int Intersect(
-
+#ifdef __ANDROID__
+__global
+#else
 __constant
-
+#endif
  const Shape *shapes,
  const unsigned int shapeCnt,
 #if (ACCELSTR == 1)
@@ -377,9 +383,11 @@ static void UniformSampleTriangle(const float u1, const float u2, float *u, floa
 }
 
 int IntersectP(
-
+#ifdef __ANDROID__
+__global
+#else
 __constant
-
+#endif
  const Shape *shapes,
  const unsigned int shapeCnt,
  const Ray *r,
@@ -397,9 +405,11 @@ __constant
 }
 
 void SampleLights(
-
+#ifdef __ANDROID__
+__global
+#else
 __constant
-
+#endif
  const Shape *shapes,
  const unsigned int shapeCnt,
  const unsigned int lightCnt,
@@ -413,9 +423,11 @@ __constant
  unsigned int i;
  unsigned int lightsVisited;
 	for (i = 0, lightsVisited = 0; i < shapeCnt && lightsVisited < lightCnt; i++) {
-	
+#ifdef __ANDROID__
+__global
+#else
 __constant
-
+#endif
   const Shape *light = &shapes[i];
 
   if (!viszero(light->e)) {
@@ -491,9 +503,11 @@ __constant
 }
 
 void RadianceOnePathTracing(
-
+#ifdef __ANDROID__
+__global
+#else
 __constant
-
+#endif
  const Shape *shapes,
  const unsigned int shapeCnt, 
  const unsigned int lightCnt,
@@ -749,9 +763,11 @@ __constant
 }
 
 void RadiancePathTracing(
-
+#ifdef __ANDROID__
+__global
+#else
 __constant
-
+#endif
  const Shape *shapes,
  const unsigned int shapeCnt, 
  const unsigned int lightCnt,
@@ -814,9 +830,11 @@ __constant
 }
 
 void RadianceDirectLighting(
-
+#ifdef __ANDROID__
+__global
+#else
 __constant
-
+#endif
  const Shape *shapes,
  const unsigned int shapeCnt, 
  const unsigned int lightCnt,
@@ -875,9 +893,11 @@ __constant
 
    return;
   }
-
+#ifdef __ANDROID__
+__global
+#else
 __constant
-
+#endif
   const Shape *obj = &shapes[id];
 
   Vec hitPoint;
@@ -1061,7 +1081,12 @@ void GenerateCameraRay(
 __kernel void RadianceGPU(
     __global Vec *colors, __global unsigned int *seedsInput,
  __constant Camera *camera,
- __constant Shape *shapes, 
+#ifdef __ANDROID__
+__global
+#else
+__constant
+#endif
+ const Shape *shapes,
  const unsigned int shapeCnt,
  const unsigned int lightCnt, 
 #if (ACCELSTR == 1)
@@ -1129,7 +1154,12 @@ __kernel void RadianceGPU(
 
 __kernel void RadianceBoxGPU(
     __global Vec *colors, __global unsigned int *seedsInput,
- __constant Shape *shapes, 
+#ifdef __ANDROID__
+__global
+#else
+__constant
+#endif
+ const Shape *shapes,
  __constant Camera *camera,
  const unsigned int shapeCnt,
  const unsigned int lightCnt,
