@@ -1,15 +1,5 @@
 
 #include "clheader.h"
- 
-inline float min2(float a, float b) {
-    //return (a < b) ? a : b;
-	return fmin(a, b);
-}
-
-inline float max2(float a, float b) {
-    //return (a > b) ? a : b;
-	return fmax(a, b);
-}
 
 inline float GetRandom(unsigned int *seed0, unsigned int *seed1) {
  *seed0 = 36969 * ((*seed0) & 65535) + ((*seed0) >> 16);
@@ -136,7 +126,7 @@ __constant
 
 void UniformSampleSphere(const float u1, const float u2, Vec *v) {
  const float zz = 1.f - 2.f * u1;
- const float r = sqrt(max2(0.f, 1.f - zz * zz));
+ const float r = sqrt(max(0.f, 1.f - zz * zz));
  const float phi = 2.f * FLOAT_PI * u2;
  const float xx = r * cos(phi);
  const float yy = r * sin(phi);
@@ -187,8 +177,8 @@ bool intersection_bound_test(const Ray r, Bound bound
     }
 
     // find if there an intersection among three t intervals
-    t_min = max2(t_xmin, max2(t_ymin, t_zmin));
-    t_max = min2(t_xmax, min2(t_ymax, t_zmax));
+    t_min = max(t_xmin, max(t_ymin, t_zmin));
+    t_max = min(t_xmax, min(t_ymax, t_zmax));
 	
 #ifdef DEBUG_INTERSECTIONS
     if (get_global_id(0) == 0) {
@@ -530,7 +520,7 @@ __constant
 #endif
  Ray *currentRay,
  unsigned int *seed0, unsigned int *seed1, 
- int depth, Vec *rad, Vec *throughput, int *specularBounce, int *terminated, 
+ Vec *rad, Vec *throughput, int *specularBounce, int *terminated, 
  Vec *result
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
@@ -816,7 +806,7 @@ __constant
 #elif (ACCELSTR == 2)
 		kng, kngCnt, kn, knCnt, 
 #endif
-		&currentRay, seed0, seed1, depth, &rad, &throughput, &specularBounce, &terminated, result
+		&currentRay, seed0, seed1, &rad, &throughput, &specularBounce, &terminated, result
 #ifdef DEBUG_INTERSECTIONS
 		, debug1, debug2
 #endif
@@ -869,6 +859,7 @@ __constant
 
  unsigned int depth = 0;
  int specularBounce = 1;
+ 
  for (;; ++depth) {
 
   if (depth > MAX_DEPTH) {
