@@ -1095,25 +1095,23 @@ __kernel void FillPixel_exp(
  if (y >= height)
   return;  
  
- const int i = (y - 1) * width + x;
- 
  if (currentSample == 0) {
-  vassign(colors[i], results[i]);
-  //{ (colors[i]).x = (r).x; (colors[i]).y = (r).y; (colors[i]).z = (r).z; };
+  vassign(colors[sgid], results[sgid]);
+  //{ (colors[sgid]).x = (r).x; (colors[sgid]).y = (r).y; (colors[sgid]).z = (r).z; };
  } else {
   const float k1 = currentSample;
   const float k2 = 1.f / (currentSample + 1.f);
-  colors[i].x = (colors[i].x * k1 + results[i].x) * k2;
-  colors[i].y = (colors[i].y * k1 + results[i].y) * k2;
-  colors[i].z = (colors[i].z * k1 + results[i].z) * k2;
+  colors[sgid].x = (colors[sgid].x * k1 + results[sgid].x) * k2;
+  colors[sgid].y = (colors[sgid].y * k1 + results[sgid].y) * k2;
+  colors[sgid].z = (colors[sgid].z * k1 + results[sgid].z) * k2;
  }
 #ifdef __ANDROID__
- pixels[gid] = (toInt(colors[i].x)  << 16) |
-   (toInt(colors[i].y) << 8) |
-   (toInt(colors[i].z)) | 0xff000000;
+ pixels[gid] = (toInt(colors[sgid].x)  << 16) |
+   (toInt(colors[sgid].y) << 8) |
+   (toInt(colors[sgid].z)) | 0xff000000;
 #else
- pixels[gid] = (toInt(colors[i].x) * 255.f + .5f) |
-   (toInt(colors[i].y) << 8) |
-   (toInt(colors[i].z) << 16) | 0xff000000;
+ pixels[gid] = (toInt(colors[sgid].x) * 255.f + .5f) |
+   (toInt(colors[sgid].y) << 8) |
+   (toInt(colors[sgid].z) << 16) | 0xff000000;
 #endif   
 }

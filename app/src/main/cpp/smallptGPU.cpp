@@ -902,7 +902,7 @@ void ExecuteKernel() {
 #endif
 
 unsigned int *DrawFrame() {
-	int len = pixelCount * sizeof(unsigned int), index = 0;
+	int len = pixelCount * sizeof(int), index = 0;
 	double startTime = WallClockTime(), setStartTime, kernelStartTime, readStartTime;
 	double setTotalTime = 0.0, kernelTotalTime = 0.0, readTotalTime = 0.0;
 	int startSampleCount = currentSample;
@@ -952,7 +952,6 @@ unsigned int *DrawFrame() {
 		index = 0;
 
 		setStartTime = WallClockTime();
-
 		clErrchk(clSetKernelArg(kernelFill, index++, sizeof(int), (void *)&width));
 		clErrchk(clSetKernelArg(kernelFill, index++, sizeof(int), (void *)&height));
 		clErrchk(clSetKernelArg(kernelFill, index++, sizeof(int), (void *)&currentSample));
@@ -972,6 +971,8 @@ unsigned int *DrawFrame() {
 	clErrchk(clEnqueueReadBuffer(commandQueue, pixelBuffer, CL_TRUE, 0, len, pixels, 0, NULL, NULL));
 	clFinish(commandQueue);
 	readTotalTime += (WallClockTime() - readStartTime);
+
+    currentSample += MAX_SPP;
 #else
 	setStartTime = WallClockTime();
 
@@ -1076,9 +1077,9 @@ unsigned int *DrawFrame() {
 
 	clErrchk(clReleaseMemObject(debugBuffer1));
 	free(debug1);
-#endif    
 #endif
-	currentSample++;
+    currentSample++;
+#endif
 
 	/*------------------------------------------------------------------------*/
 	const double elapsedTime = WallClockTime() - startTime;
