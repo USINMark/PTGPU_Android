@@ -210,7 +210,8 @@ public class PTGPURenderer implements GLSurfaceView.Renderer {
 
             gl.glMatrixMode(GL10.GL_PROJECTION); //Select The Projection Matrix
             gl.glLoadIdentity();//Reset The Projection Matrix
-            GLU.gluPerspective(gl, 45.0f, (float) w / h, 0.1f, 100.0f);
+            gl.glOrthof((float) -w / h, (float) w / h, -1.0f, 1.0f, 0.1f, 100.0f);
+            //GLU.gluPerspective(gl, 45.0f, (float) w / h, 0.1f, 100.0f);
 
             gl.glMatrixMode(GL10.GL_MODELVIEW);//Select The Modelview Matrix
             gl.glLoadIdentity();//Reset The Modelview Matrix
