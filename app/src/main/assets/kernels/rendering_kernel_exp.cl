@@ -777,22 +777,19 @@ __constant
  int *kn, 
  int knCnt, 
 #endif  
- __global Ray *rays, 
- __global unsigned int *seedsInput,
- __global Vec *throughput, __global int *specularBounce, __global int *terminated, 
- __global Vec *result
+ __global Ray *rays, __global unsigned int *seedsInput, __global Vec *throughput, __global int *specularBounce, __global int *terminated, __global Vec *result
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
  __global float *debug2
 #endif
- ) { 
+ ) {
  const int gid = get_global_id(0);
- 	
+
  const int x = gid % width;
  const int y = gid / width;
- 
+
  const int sgid2 = gid << 1; 
-  
+
  if (terminated[gid] != 1)
  {
 	Ray aray = rays[gid];
@@ -840,7 +837,7 @@ __constant
  int knCnt, 
 #endif
  const Ray *startRay,
- __global unsigned int *seed0, __global unsigned int *seed1,
+ __global unsigned int *seed0, __global unsigned int *seed1, 
  Vec *result
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
@@ -1037,8 +1034,7 @@ __kernel void GenerateCameraRay_exp(
   __constant Camera *camera,  
   __global unsigned int *seedsInput,
   const int width, const int height, 
-  __global Ray *rays, 
-  __global Vec *throughput, __global int *specularBounce, __global int *terminated, __global Vec *result) {
+  __global Ray *rays, __global Vec *throughput, __global int *specularBounce, __global int *terminated, __global Vec *result) {
  const int gid = get_global_id(0);
 
  const int x = gid % width;
@@ -1080,8 +1076,7 @@ __kernel void GenerateCameraRay_exp(
 }
 
 __kernel void FillPixel_exp(
-   const int width, const int height,
-   const int currentSample,
+   const int width, const int height, const int currentSample,
     __global Vec *colors, __global Vec *results, __global int *pixels
  ) {
     const int gid = get_global_id(0);
@@ -1106,11 +1101,11 @@ __kernel void FillPixel_exp(
   colors[sgid].z = (colors[sgid].z * k1 + results[sgid].z) * k2;
  }
 #ifdef __ANDROID__
- pixels[gid] = (toInt(colors[sgid].x)  << 16) |
+ pixels[y * width + x] = (toInt(colors[sgid].x)  << 16) |
    (toInt(colors[sgid].y) << 8) |
    (toInt(colors[sgid].z)) | 0xff000000;
 #else
- pixels[gid] = (toInt(colors[sgid].x) * 255.f + .5f) |
+ pixels[y * width + x] = (toInt(colors[sgid].x)) |
    (toInt(colors[sgid].y) << 8) |
    (toInt(colors[sgid].z) << 16) | 0xff000000;
 #endif   

@@ -947,7 +947,7 @@ unsigned int *DrawFrame() {
 			ExecuteKernel(kernelRadiance);
 			clFinish(commandQueue);
 			kernelTotalTime += (WallClockTime() - kernelStartTime);
-		}
+        }
 
 		index = 0;
 
@@ -965,10 +965,11 @@ unsigned int *DrawFrame() {
 		clFinish(commandQueue);
 		kernelTotalTime += (WallClockTime() - kernelStartTime);
 	}
-	readStartTime = WallClockTime();
+
 	//--------------------------------------------------------------------------
 	/* Enqueue readBuffer */
-	clErrchk(clEnqueueReadBuffer(commandQueue, pixelBuffer, CL_TRUE, 0, len, pixels, 0, NULL, NULL));
+    readStartTime = WallClockTime();
+    clErrchk(clEnqueueReadBuffer(commandQueue, pixelBuffer, CL_TRUE, 0, len, pixels, 0, NULL, NULL));
 	clFinish(commandQueue);
 	readTotalTime += (WallClockTime() - readStartTime);
 
@@ -1123,7 +1124,6 @@ void ReInit(const int reallocBuffers) {
     int index = 0;
 
     /* Set kernel arguments */
-    //setStartTime = WallClockTime();
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&cameraBuffer));
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&seedBuffer));
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(int), (void *)&width));
@@ -1133,12 +1133,9 @@ void ReInit(const int reallocBuffers) {
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&specularBounceBuffer));
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&terminatedBuffer));
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&resultBuffer));
-    //setTotalTime += (WallClockTime() - setStartTime);
 
-    //kernelStartTime = WallClockTime();
     ExecuteKernel(kernelGen);
     clFinish(commandQueue);
-    //kernelTotalTime += (WallClockTime() - kernelStartTime);
 
     clEnqueueReadBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) * width * height, ray, 0, NULL, NULL);
     clEnqueueReadBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) * width * height, throughput, 0, NULL, NULL);
