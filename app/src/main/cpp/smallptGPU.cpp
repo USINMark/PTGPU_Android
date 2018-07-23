@@ -927,7 +927,7 @@ unsigned int *DrawFrame() {
 
 		kernelStartTime = WallClockTime();
 		ExecuteKernel(kernelGen);
-		clFinish(commandQueue);
+		//clFinish(commandQueue);
 		kernelTotalTime += (WallClockTime() - kernelStartTime);
 
 		for (int i = 0; i < MAX_DEPTH; i++)
@@ -977,7 +977,7 @@ unsigned int *DrawFrame() {
 
 		kernelStartTime = WallClockTime();
 		ExecuteKernel(kernelFill);
-		clFinish(commandQueue);
+		//clFinish(commandQueue);
 		kernelTotalTime += (WallClockTime() - kernelStartTime);
 	}
 	readStartTime = WallClockTime();

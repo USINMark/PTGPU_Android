@@ -520,8 +520,8 @@ __constant
 #endif
  Ray *currentRay,
  __global unsigned int *seed0, __global unsigned int *seed1, 
- Vec *throughput, int *specularBounce, int *terminated, 
- Vec *result
+ __global Vec *throughput, __global int *specularBounce, __global int *terminated, 
+ __global Vec *result
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
  __global float *debug2
@@ -791,34 +791,26 @@ __constant
  const int x = gid % width;
  const int y = gid / width;
  
- const int sgid2 = gid << 1;
- 
- Vec thr = throughput[gid];
- int sb = specularBounce[gid];
- Ray aray = rays[gid];
- int ter = terminated[gid];
- Vec res = result[gid];
+ const int sgid2 = gid << 1; 
   
  if (terminated[gid] != 1)
  {
-	 RadianceOnePathTracing(shapes, shapeCnt, lightCnt, 
+	Ray aray = rays[gid];
+	
+	RadianceOnePathTracing(shapes, shapeCnt, lightCnt, 
 #if (ACCELSTR == 1)
 			btn, btl, 
 #elif (ACCELSTR == 2)
 			kng, kngCnt, kn, knCnt, 
 #endif
-			&aray, &seedsInput[sgid2], &seedsInput[sgid2+1], &thr, &sb, &ter, &res
+			&aray, &seedsInput[sgid2], &seedsInput[sgid2+1], &throughput[gid], &specularBounce[gid], &terminated[gid], &result[gid]
 #ifdef DEBUG_INTERSECTIONS
 		, debug1, debug2
 #endif
 	);	
- } 
- 
- result[gid] = res;
- terminated[gid] = ter;
- rays[gid] = aray;  
- specularBounce[gid] = sb;
- throughput[gid] = thr;
+	
+	rays[gid] = aray; 
+ }   
 }
 
 void RadianceDirectLighting(
