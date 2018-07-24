@@ -744,7 +744,7 @@ __constant
 
     rinit(*currentRay, hitPoint, transDir);
     //{ { ((currentRay)->o).x = (hitPoint).x; ((currentRay)->o).y = (hitPoint).y; ((currentRay)->o).z = (hitPoint).z; }; { ((currentRay)->d).x = (transDir).x; ((currentRay)->d).y = (transDir).y; ((currentRay)->d).z = (transDir).z; }; };
-    
+
 	return;
    }
  }

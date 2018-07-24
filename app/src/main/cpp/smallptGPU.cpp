@@ -911,12 +911,21 @@ unsigned int *DrawFrame() {
 #ifdef EXP_KERNEL
 	for (int j = 0; j < MAX_SPP; j++)
 	{
-        clErrchk(clEnqueueWriteBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) * width * height, ray, 0, NULL, NULL));
-        clErrchk(clEnqueueWriteBuffer(commandQueue, seedBuffer, CL_TRUE, 0, sizeof(unsigned int) * width * height * 2, seeds, 0, NULL, NULL));
-        clErrchk(clEnqueueWriteBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) * width * height, throughput, 0, NULL, NULL));
-        clErrchk(clEnqueueWriteBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(int) * width * height, specularBounce, 0, NULL, NULL));
-        clErrchk(clEnqueueWriteBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(int) * width * height, terminated, 0, NULL, NULL));
-        clErrchk(clEnqueueWriteBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) * width * height, result, 0, NULL, NULL));
+        index = 0;
+
+        /* Set kernel arguments */
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&cameraBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&seedBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(int), (void *)&width));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(int), (void *)&height));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&rayBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&throughputBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&specularBounceBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&terminatedBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&resultBuffer));
+
+        ExecuteKernel(kernelGen, width * height);
+        clFinish(commandQueue);
 
         int rayCnt = width * height;
 		for (int i = 0; i < MAX_DEPTH; i++)
@@ -974,13 +983,14 @@ unsigned int *DrawFrame() {
 		ExecuteKernel(kernelFill, width * height);
 		clFinish(commandQueue);
 		kernelTotalTime += (WallClockTime() - kernelStartTime);
-
+#if 0
         int cntBlack = 0;
         for(int k = 0; k < width * height; k++)
         {
             if (pixels[k] == 0) cntBlack++;
         }
         LOGI("# of black pixels: %d\n", cntBlack);
+#endif
 	}
 
 	//--------------------------------------------------------------------------
@@ -1137,30 +1147,6 @@ void ReInit(const int reallocBuffers) {
 #endif
 
     currentSample = 0;
-#ifdef EXP_KERNEL
-    int index = 0;
-
-    /* Set kernel arguments */
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&cameraBuffer));
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&seedBuffer));
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(int), (void *)&width));
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(int), (void *)&height));
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&rayBuffer));
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&throughputBuffer));
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&specularBounceBuffer));
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&terminatedBuffer));
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&resultBuffer));
-
-    ExecuteKernel(kernelGen, width * height);
-    clFinish(commandQueue);
-
-    clErrchk(clEnqueueReadBuffer(commandQueue, seedBuffer, CL_TRUE, 0, sizeof(unsigned int) * width * height * 2, seeds, 0, NULL, NULL));
-    clErrchk(clEnqueueReadBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) * width * height, ray, 0, NULL, NULL));
-    clErrchk(clEnqueueReadBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) * width * height, throughput, 0, NULL, NULL));
-    clErrchk(clEnqueueReadBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(int) * width * height, specularBounce, 0, NULL, NULL));
-    clErrchk(clEnqueueReadBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(int) * width * height, terminated, 0, NULL, NULL));
-    clErrchk(clEnqueueReadBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) * width * height, result, 0, NULL, NULL));
-#endif
 }
 
 #ifdef WIN32
