@@ -777,19 +777,19 @@ __constant
  int *kn, 
  int knCnt, 
 #endif  
- __global Ray *rays, __global unsigned int *seedsInput, __global Vec *throughput, __global int *specularBounce, __global int *terminated, __global Vec *result
+ __global Ray *rays, __global unsigned int *seedsInput, __global Vec *throughput, __global int *specularBounce, __global int *terminated, __global Result *results
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
  __global float *debug2
 #endif
- ) {
+ ) { 
  const int gid = get_global_id(0);
-
+ 	
  const int x = gid % width;
  const int y = gid / width;
-
+ 
  const int sgid2 = gid << 1; 
-
+  
  if (terminated[gid] != 1)
  {
 	Ray aray = rays[gid];
@@ -800,13 +800,13 @@ __constant
 #elif (ACCELSTR == 2)
 			kng, kngCnt, kn, knCnt, 
 #endif
-			&aray, &seedsInput[sgid2], &seedsInput[sgid2+1], &throughput[gid], &specularBounce[gid], &terminated[gid], &result[gid]
+			&aray, &seedsInput[sgid2], &seedsInput[sgid2+1], &throughput[gid], &specularBounce[gid], &terminated[gid], &results[gid].p
 #ifdef DEBUG_INTERSECTIONS
 		, debug1, debug2
 #endif
 	);	
 	
-	rays[gid] = aray; 
+	rays[gid] = aray;
  }   
 }
 
@@ -1034,7 +1034,7 @@ __kernel void GenerateCameraRay_exp(
   __constant Camera *camera,  
   __global unsigned int *seedsInput,
   const int width, const int height, 
-  __global Ray *rays, __global Vec *throughput, __global int *specularBounce, __global int *terminated, __global Vec *result) {
+  __global Ray *rays, __global Vec *throughput, __global int *specularBounce, __global int *terminated, __global Result *results) {
  const int gid = get_global_id(0);
 
  const int x = gid % width;
@@ -1054,7 +1054,7 @@ __kernel void GenerateCameraRay_exp(
  throughput[gid].x = throughput[gid].y = throughput[gid].z = 1.f;
  specularBounce[gid] = 1;
  terminated[gid] = 0;
- result[gid].x = result[gid].y = result[gid].z = 0.f;
+ results[gid].x = x, results[gid].y = y, results[gid].p.x = results[gid].p.y = results[gid].p.z = 0.f;
  
  Vec rdir;
   vinit(rdir,
@@ -1077,12 +1077,12 @@ __kernel void GenerateCameraRay_exp(
 
 __kernel void FillPixel_exp(
    const int width, const int height, const int currentSample,
-    __global Vec *colors, __global Vec *results, __global int *pixels
+    __global Vec *colors, __global Result *results, __global int *pixels
  ) {
     const int gid = get_global_id(0);
 	
- const int x = gid % width;
- const int y = gid / width;
+ const int x = results[gid].x; //gid % width;
+ const int y = results[gid].y; //gid / width;
  
  const int sgid = (y - 1) * width + x;
  const int sgid2 = sgid << 1;
@@ -1091,14 +1091,14 @@ __kernel void FillPixel_exp(
   return;  
  
  if (currentSample == 0) {
-  vassign(colors[sgid], results[sgid]);
+  vassign(colors[sgid], results[sgid].p);
   //{ (colors[sgid]).x = (r).x; (colors[sgid]).y = (r).y; (colors[sgid]).z = (r).z; };
  } else {
   const float k1 = currentSample;
   const float k2 = 1.f / (currentSample + 1.f);
-  colors[sgid].x = (colors[sgid].x * k1 + results[sgid].x) * k2;
-  colors[sgid].y = (colors[sgid].y * k1 + results[sgid].y) * k2;
-  colors[sgid].z = (colors[sgid].z * k1 + results[sgid].z) * k2;
+  colors[sgid].x = (colors[sgid].x * k1 + results[sgid].p.x) * k2;
+  colors[sgid].y = (colors[sgid].y * k1 + results[sgid].p.y) * k2;
+  colors[sgid].z = (colors[sgid].z * k1 + results[sgid].p.z) * k2;
  }
 #ifdef __ANDROID__
  pixels[y * width + x] = (toInt(colors[sgid].x)  << 16) |

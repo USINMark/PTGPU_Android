@@ -60,7 +60,8 @@ bool Read(char *fileName, bool *walllight);
 
 #ifdef EXP_KERNEL
 Ray *ray;
-Vec *throughput, *result;
+Vec *throughput;
+Result *result;
 int *specularBounce, *terminated;
 
 static cl_mem rayBuffer, throughputBuffer, specularBounceBuffer, terminatedBuffer, resultBuffer;
@@ -234,9 +235,9 @@ void AllocateBuffers() {
 	terminatedBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int) *  width * height, NULL, &status);
 	clErrchk(status);
 
-	result = (Vec *)malloc(sizeof(Vec) * width * height);
+	result = (Result *)malloc(sizeof(Result) * width * height);
 
-	resultBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Vec) *  width * height, NULL, &status);
+	resultBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Result) *  width * height, NULL, &status);
 	clErrchk(status);	
 #endif
 }
@@ -870,11 +871,11 @@ unsigned int *DrawFrame()
 }
 #else
 #ifdef EXP_KERNEL
-void ExecuteKernel(cl_kernel p_kernel) {
+void ExecuteKernel(cl_kernel p_kernel, int cnt_kernel) {
 	/* Enqueue a kernel run call */
 	size_t globalThreads[1];
 
-	globalThreads[0] = width * height;
+	globalThreads[0] = cnt_kernel;
 
 	if (globalThreads[0] % workGroupSize != 0) globalThreads[0] = (globalThreads[0] / workGroupSize + 1) * workGroupSize;
 
@@ -910,12 +911,14 @@ unsigned int *DrawFrame() {
 #ifdef EXP_KERNEL
 	for (int j = 0; j < MAX_SPP; j++)
 	{
-        clEnqueueWriteBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) * width * height, ray, 0, NULL, NULL);
-        clEnqueueWriteBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) * width * height, throughput, 0, NULL, NULL);
-        clEnqueueWriteBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(int) * width * height, specularBounce, 0, NULL, NULL);
-        clEnqueueWriteBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(int) * width * height, terminated, 0, NULL, NULL);
-        clEnqueueWriteBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Vec) * width * height, result, 0, NULL, NULL);
+        clErrchk(clEnqueueWriteBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) * width * height, ray, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, seedBuffer, CL_TRUE, 0, sizeof(unsigned int) * width * height * 2, seeds, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) * width * height, throughput, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(int) * width * height, specularBounce, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(int) * width * height, terminated, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) * width * height, result, 0, NULL, NULL));
 
+        int rayCnt = width * height;
 		for (int i = 0; i < MAX_DEPTH; i++)
 		{
 			index = 0;
@@ -944,9 +947,16 @@ unsigned int *DrawFrame() {
 			setTotalTime += (WallClockTime() - setStartTime);
 
 			kernelStartTime = WallClockTime();
-			ExecuteKernel(kernelRadiance);
+			ExecuteKernel(kernelRadiance, rayCnt);
 			clFinish(commandQueue);
 			kernelTotalTime += (WallClockTime() - kernelStartTime);
+#if 0
+            rayCnt = 0;
+            for(int k = 0; k < width * height; k++)
+            {
+                if (terminated[k] == 0) rayCnt++;
+            }
+#endif
         }
 
 		index = 0;
@@ -961,9 +971,16 @@ unsigned int *DrawFrame() {
 		setTotalTime += (WallClockTime() - setStartTime);
 
 		kernelStartTime = WallClockTime();
-		ExecuteKernel(kernelFill);
+		ExecuteKernel(kernelFill, width * height);
 		clFinish(commandQueue);
 		kernelTotalTime += (WallClockTime() - kernelStartTime);
+
+        int cntBlack = 0;
+        for(int k = 0; k < width * height; k++)
+        {
+            if (pixels[k] == 0) cntBlack++;
+        }
+        LOGI("# of black pixels: %d\n", cntBlack);
 	}
 
 	//--------------------------------------------------------------------------
@@ -1134,14 +1151,15 @@ void ReInit(const int reallocBuffers) {
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&terminatedBuffer));
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&resultBuffer));
 
-    ExecuteKernel(kernelGen);
+    ExecuteKernel(kernelGen, width * height);
     clFinish(commandQueue);
 
-    clEnqueueReadBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) * width * height, ray, 0, NULL, NULL);
-    clEnqueueReadBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) * width * height, throughput, 0, NULL, NULL);
-    clEnqueueReadBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(int) * width * height, specularBounce, 0, NULL, NULL);
-    clEnqueueReadBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(int) * width * height, terminated, 0, NULL, NULL);
-    clEnqueueReadBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Vec) * width * height, result, 0, NULL, NULL);
+    clErrchk(clEnqueueReadBuffer(commandQueue, seedBuffer, CL_TRUE, 0, sizeof(unsigned int) * width * height * 2, seeds, 0, NULL, NULL));
+    clErrchk(clEnqueueReadBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) * width * height, ray, 0, NULL, NULL));
+    clErrchk(clEnqueueReadBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) * width * height, throughput, 0, NULL, NULL));
+    clErrchk(clEnqueueReadBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(int) * width * height, specularBounce, 0, NULL, NULL));
+    clErrchk(clEnqueueReadBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(int) * width * height, terminated, 0, NULL, NULL));
+    clErrchk(clEnqueueReadBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) * width * height, result, 0, NULL, NULL));
 #endif
 }
 
