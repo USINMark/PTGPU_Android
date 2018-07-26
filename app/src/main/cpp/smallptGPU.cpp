@@ -903,7 +903,7 @@ void ExecuteKernel() {
 #endif
 
 unsigned int *DrawFrame() {
-	int len = pixelCount * sizeof(int), index = 0;
+	int len = pixelCount * sizeof(unsigned int), index = 0;
 	double startTime = WallClockTime(), setStartTime, kernelStartTime, readStartTime;
 	double setTotalTime = 0.0, kernelTotalTime = 0.0, readTotalTime = 0.0;
 	int startSampleCount = currentSample;
@@ -929,7 +929,7 @@ unsigned int *DrawFrame() {
 
 		kernelStartTime = WallClockTime();
 		ExecuteKernel(kernelGen, rayCnt);
-		clFinish(commandQueue);
+		//clFinish(commandQueue);
 		kernelTotalTime += (WallClockTime() - kernelStartTime);
 		        
 		for (int i = 0; i < MAX_DEPTH; i++)
@@ -961,15 +961,8 @@ unsigned int *DrawFrame() {
 
 			kernelStartTime = WallClockTime();
 			ExecuteKernel(kernelRadiance, rayCnt);
-			clFinish(commandQueue);
+			//clFinish(commandQueue);
 			kernelTotalTime += (WallClockTime() - kernelStartTime);
-#if 0
-            rayCnt = 0;
-            for(int k = 0; k < width * height; k++)
-            {
-                if (terminated[k] == 0) rayCnt++;
-            }
-#endif
         }
 
 		index = 0;
@@ -985,16 +978,8 @@ unsigned int *DrawFrame() {
 
 		kernelStartTime = WallClockTime();
 		ExecuteKernel(kernelFill, width * height);
-		clFinish(commandQueue);
+		//clFinish(commandQueue);
 		kernelTotalTime += (WallClockTime() - kernelStartTime);
-#if 0
-        int cntBlack = 0;
-        for(int k = 0; k < width * height; k++)
-        {
-            if (pixels[k] == 0) cntBlack++;
-        }
-        LOGI("# of black pixels: %d\n", cntBlack);
-#endif
 	}
 
 	//--------------------------------------------------------------------------

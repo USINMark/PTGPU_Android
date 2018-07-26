@@ -1040,7 +1040,7 @@ __kernel void GenerateCameraRay_exp(
  const int x = gid % width;
  const int y = gid / width;
 
- const int sgid = (y - 1) * width + x;
+ const int sgid = y * width + x;
  const int sgid2 = sgid << 1;
    
  const float invWidth = 1.f / width;
@@ -1084,7 +1084,7 @@ __kernel void FillPixel_exp(
  const int x = results[gid].x; //gid % width;
  const int y = results[gid].y; //gid / width;
  
- const int sgid = (y - 1) * width + x;
+ const int sgid = y * width + x;
  const int sgid2 = sgid << 1;
  
  if (y >= height)
