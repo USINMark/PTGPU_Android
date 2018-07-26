@@ -662,9 +662,9 @@ void DrawBox(int xstart, int ystart, int bwidth, int bheight, int twidth, int th
 
 			Vec rdir;
 			vinit(rdir,
-				camera.x.x * kcx + camera.y.x * kcy + camera.dir.x,
-				camera.x.y * kcx + camera.y.y * kcy + camera.dir.y,
-				camera.x.z * kcx + camera.y.z * kcy + camera.dir.z);
+				camera.x.s[0] * kcx + camera.y.s[0] * kcy + camera.dir.s[0],
+				camera.x.s[1] * kcx + camera.y.s[1] * kcy + camera.dir.s[1],
+				camera.x.s[2] * kcx + camera.y.s[2] * kcy + camera.dir.s[2]);
 
 			Vec rorig;
 			vsmul(rorig, 0.1f, rdir);
@@ -674,7 +674,7 @@ void DrawBox(int xstart, int ystart, int bwidth, int bheight, int twidth, int th
 			const Ray ray = { rorig, rdir };
 
 			Vec r;
-			r.x = r.y = r.z = 1.0f;
+			r.s[0] = r.s[1] = r.s[2] = 1.0f;
 
 			RadiancePathTracing(shapes, shapeCnt, lightCnt, 
 #if (ACCELSTR == 1)
@@ -689,14 +689,14 @@ void DrawBox(int xstart, int ystart, int bwidth, int bheight, int twidth, int th
 			else {
 				const float k1 = currentSample;
 				const float k2 = 1.f / (k1 + 1.f);
-				colors[i].x = (colors[i].x * k1 + r.x) * k2;
-				colors[i].y = (colors[i].y * k1 + r.y) * k2;
-				colors[i].z = (colors[i].z * k1 + r.z) * k2;
+				colors[i].s[0] = (colors[i].s[0] * k1 + r.s[0]) * k2;
+				colors[i].s[1] = (colors[i].s[1] * k1 + r.s[1]) * k2;
+				colors[i].s[2] = (colors[i].s[2] * k1 + r.s[2]) * k2;
 			}
 
-			pixels[y * twidth + x] = toInt(colors[i].x) |
-				(toInt(colors[i].y) << 8) |
-				(toInt(colors[i].z) << 16);
+			pixels[y * twidth + x] = toInt(colors[i].s[0]) |
+				(toInt(colors[i].s[1]) << 8) |
+				(toInt(colors[i].s[2]) << 16);
 		}
 	}
 	cpuTotalTime += (WallClockTime() - cpuStartTime);
@@ -736,8 +736,8 @@ unsigned int *DrawAllBoxes(int bwidth, int bheight, float *rCPU, bool bFirst) {
 				/* Set kernel arguments */
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&colorBuffer));
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&seedBuffer));
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&shapeBuffer));
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&cameraBuffer));
+                clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&shapeBuffer));
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(unsigned int), (void *)&shapeCnt));				
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(unsigned int), (void *)&lightCnt));
 #if (ACCELSTR == 1)
@@ -843,8 +843,7 @@ unsigned int *DrawAllBoxes(int bwidth, int bheight, float *rCPU, bool bFirst) {
 	clErrchk(clEnqueueReadBuffer(commandQueue, pixelBuffer, CL_TRUE, 0, sizeof(unsigned int) * width * height, pixels, 0, NULL, NULL));
 	rwTotalTime += (WallClockTime() - rwStartTime);
 
-	//if (bFirst) 
-	*rCPU = (cpuTotalTime / (nCPU - 1)) / ((setTotalTime + kernelTotalTime + rwTotalTime) / nGPU);
+	if (bFirst) *rCPU = (cpuTotalTime / (nCPU - 1)) / ((setTotalTime + kernelTotalTime + rwTotalTime) / nGPU);
 
 	currentSample++;
 

@@ -1142,7 +1142,7 @@ __constant
 #else
  pixels[y * width + x] = (toInt(colors[i].x)) |
    (toInt(colors[i].y) << 8) |
-   (toInt(colors[i].z)) << 16) | 0xff000000;
+   (toInt(colors[i].z) << 16) | 0xff000000;
 #endif   
 
  seedsInput[gid2] = seed0;
@@ -1151,13 +1151,13 @@ __constant
 
 __kernel void RadianceBoxGPU(
     __global Vec *colors, __global unsigned int *seedsInput,
+	__constant Camera *camera,
 #ifdef __ANDROID__
 __global
 #else
 __constant
 #endif
  const Shape *shapes,
- __constant Camera *camera,
  const unsigned int shapeCnt,
  const unsigned int lightCnt,
 #if (ACCELSTR == 1)
@@ -1184,7 +1184,7 @@ __constant
  const int xwithinbox = gid % bwidth;
  const int ywithinbox = gid / bwidth;
  
- const int sgid = (y + ywithinbox - 1) * twidth + (x + xwithinbox);
+ const int sgid = (y + ywithinbox) * twidth + (x + xwithinbox);
  const int sgid2 = sgid << 1;
  
  if (y + ywithinbox >= theight)
