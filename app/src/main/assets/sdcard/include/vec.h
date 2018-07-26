@@ -24,29 +24,29 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _VEC_H
 #define	_VEC_H
 
-typedef struct {
-		float x, y, z; // position, also color (r,g,b)
-} Vec;
-
-#define vinit(v, a, b, c) { (v).x = a; (v).y = b; (v).z = c; }
-#define vassign(a, b) vinit(a, (b).x, (b).y, (b).z)
-#define vclr(v) vinit(v, 0.f, 0.f, 0.f)
-#define vadd(v, a, b) vinit(v, (a).x + (b).x, (a).y + (b).y, (a).z + (b).z)
-#define vsub(v, a, b) vinit(v, (a).x - (b).x, (a).y - (b).y, (a).z - (b).z)
-#define vsadd(v, a, b) { float k = (a); vinit(v, (b).x + k, (b).y + k, (b).z + k) }
-#define vssub(v, a, b) { float k = (a); vinit(v, (b).x - k, (b).y - k, (b).z - k) }
-#define vmul(v, a, b) vinit(v, (a).x * (b).x, (a).y * (b).y, (a).z * (b).z)
-#define vsmul(v, a, b) { float k = (a); vinit(v, k * (b).x, k * (b).y, k * (b).z) }
-#define vdot(a, b) ((a).x * (b).x + (a).y * (b).y + (a).z * (b).z)
-#define vnorm(v) { float l = 1.f / sqrt(vdot(v, v)); vsmul(v, l, v); }
-#define vxcross(v, a, b) vinit(v, (a).y * (b).z - (a).z * (b).y, (a).z * (b).x - (a).x * (b).z, (a).x * (b).y - (a).y * (b).x)
-#define vfilter(v) ((v).x > (v).y && (v).x > (v).z ? (v).x : (v).y > (v).z ? (v).y : (v).z)
-#define viszero(v) (((v).x == 0.f) && ((v).x == 0.f) && ((v).z == 0.f))
-#define norm(v) (sqrt((v).x*(v).x + (v).y*(v).y + (v).z*(v).z))
-#define dist(a, b) (sqrt( ((a).x-(b).x)*((a).x-(b).x)  +   ((a).y-(b).y)*((a).y-(b).y)   +   ((a).z-(b).z)*((a).z-(b).z)))
-#define affine(v, t, a, b) vinit(v, (a).x*t + (b).x*(1-t), (a).y*t + (b).y*(1-t), (a).z*t + (b).z*(1-t))
-
 #ifndef GPU_KERNEL
+#include "../../../cpp/include/CL/cl_platform.h"
+
+typedef cl_float3 Vec;
+
+#define vinit(v, a, b, c) { (v).s[0] = a, (v).s[1] = b, (v).s[2] = c; }
+#define vassign(a, b) vinit(a, (b).s[0], (b).s[1], (b).s[2])
+#define vclr(v) vinit(v, 0.f, 0.f, 0.f)
+#define vadd(v, a, b) vinit(v, (a).s[0] + (b).s[0], (a).s[1] + (b).s[1], (a).s[2] + (b).s[2])
+#define vsub(v, a, b) vinit(v, (a).s[0] - (b).s[0], (a).s[1] - (b).s[1], (a).s[2] - (b).s[2])
+#define vsadd(v, a, b) { float k = (a); vinit(v, (b).s[0] + k, (b).s[1] + k, (b).s[2] + k) }
+#define vssub(v, a, b) { float k = (a); vinit(v, (b).s[0] - k, (b).s[1] - k, (b).s[2] - k) }
+#define vmul(v, a, b) vinit(v, (a).s[0] * (b).s[0], (a).s[1] * (b).s[1], (a).s[2] * (b).s[2])
+#define vsmul(v, a, b) { float k = (a); vinit(v, k * (b).s[0], k * (b).s[1], k * (b).s[2]) }
+#define vdot(a, b) ((a).s[0] * (b).s[0] + (a).s[1] * (b).s[1] + (a).s[2] * (b).s[2])
+#define vnorm(v) { float l = 1.f / sqrt(vdot(v, v)); vsmul(v, l, v); }
+#define vxcross(v, a, b) vinit(v, (a).s[1] * (b).s[2] - (a).s[2] * (b).s[1], (a).s[2] * (b).s[0] - (a).s[0] * (b).s[2], (a).s[0] * (b).s[1] - (a).s[1] * (b).s[0])
+#define vfilter(v) ((v).s[0] > (v).s[1] && (v).s[0] > (v).s[2] ? (v).s[0] : (v).s[1] > (v).s[2] ? (v).s[1] : (v).s[2])
+#define viszero(v) (((v).s[0] == 0.f) && ((v).s[1] == 0.f) && ((v).s[2] == 0.f))
+#define norm(v) (sqrt((v).s[0]*(v).s[0] + (v).s[1]*(v).s[1] + (v).s[2]*(v).s[2]))
+#define dist(a, b) (sqrt( ((a).s[0]-(b).s[0])*((a).s[0]-(b).s[0])  +   ((a).s[1]-(b).s[1])*((a).s[1]-(b).s[1])   +   ((a).s[2]-(b).s[2])*((a).s[2]-(b).s[2])))
+#define affine(v, t, a, b) vinit(v, (a).s[0]*t + (b).s[0]*(1-t), (a).s[1]*t + (b).s[1]*(1-t), (a).s[2]*t + (b).s[2]*(1-t))
+
 #define clamp(x, a, b) ((x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
 #define sign(x) ((x) > 0 ? 1 : -1)
 #ifndef max
@@ -55,6 +55,26 @@ typedef struct {
 #ifndef min
 #define min(x, y) ( (x) < (y) ? (x) : (y))
 #endif
+#else
+typedef float3 Vec;
+
+#define vinit(v, a, b, c) { v = (float3)(a, b, c);  }
+#define vassign(a, b) vinit(a, (b).x, (b).y, (b).z)
+#define vclr(v) vinit(v, 0.f, 0.f, 0.f)
+#define vadd(v, a, b) { v = a + b; }
+#define vsub(v, a, b) { v = a - b; }
+#define vsadd(v, a, b) { v = a + b; }
+#define vssub(v, a, b) { v = a - b; }
+#define vmul(v, a, b) { v = a * b; }
+#define vsmul(v, a, b) { v = a * b; }
+#define vdot(a, b) ( dot(a, b) )
+#define vnorm(v) { v = normalize(v); }
+#define vxcross(v, a, b) { v = cross(a, b); }
+#define vfilter(v) ((v).x > (v).y && (v).x > (v).z ? (v).x : (v).y > (v).z ? (v).y : (v).z)
+#define viszero(v) (((v).x == 0.f) && ((v).y == 0.f) && ((v).z == 0.f))
+#define norm(v) ( fast_length(v) )
+#define dist(a, b) ( fast_distance(a, b) )
+#define affine(v, t, a, b) { v = (a * t) + (b * (1-t)); }
 #endif
 
 #define toInt(x) ((int)(pow(clamp(x, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f))

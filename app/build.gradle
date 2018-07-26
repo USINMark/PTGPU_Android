@@ -11,8 +11,8 @@ android {
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                cppFlags "-fopenmp -fno-exceptions -D__ANDROID__ -I. -I../include -Iinclude -Llib -landroid -llog -lOpenCL"
-                cFlags "-fopenmp -fno-exceptions -D__ANDROID__ -I. -I../include -Iinclude -Llib -landroid -llog -lOpenCL"
+                cppFlags "-O3 -mfloat-abi=softfp -mfpu=neon -fopenmp -fno-exceptions -D__ANDROID__ -I. -I../include -Iinclude -Llib -landroid -llog -lOpenCL"
+                cFlags "-O3 -mfloat-abi=softfp -mfpu=neon -fopenmp -fno-exceptions -D__ANDROID__ -I. -I../include -Iinclude -Llib -landroid -llog -lOpenCL"
             }
         }
         ndk {

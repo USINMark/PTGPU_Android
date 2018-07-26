@@ -911,10 +911,12 @@ unsigned int *DrawFrame() {
 #ifdef EXP_KERNEL
 	for (int j = 0; j < MAX_SPP; j++)
 	{
+		int rayCnt = width * height;
         index = 0;
 
-        /* Set kernel arguments */
-        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&cameraBuffer));
+		/* Set kernel arguments */
+		setStartTime = WallClockTime();
+		clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&cameraBuffer));
         clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&seedBuffer));
         clErrchk(clSetKernelArg(kernelGen, index++, sizeof(int), (void *)&width));
         clErrchk(clSetKernelArg(kernelGen, index++, sizeof(int), (void *)&height));
@@ -923,11 +925,13 @@ unsigned int *DrawFrame() {
         clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&specularBounceBuffer));
         clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&terminatedBuffer));
         clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&resultBuffer));
+		setTotalTime += (WallClockTime() - setStartTime);
 
-        ExecuteKernel(kernelGen, width * height);
-        clFinish(commandQueue);
-
-        int rayCnt = width * height;
+		kernelStartTime = WallClockTime();
+		ExecuteKernel(kernelGen, rayCnt);
+		clFinish(commandQueue);
+		kernelTotalTime += (WallClockTime() - kernelStartTime);
+		        
 		for (int i = 0; i < MAX_DEPTH; i++)
 		{
 			index = 0;

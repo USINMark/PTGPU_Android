@@ -49,12 +49,12 @@ Bound CLBVH::getBound(Sphere s)
 {
 	Bound b;
 
-	b.min_x = s.p.x - s.rad;
-	b.max_x = s.p.x + s.rad;
-	b.min_y = s.p.y - s.rad;
-	b.max_y = s.p.y + s.rad;
-	b.min_z = s.p.z - s.rad;
-	b.max_z = s.p.z + s.rad;
+	b.min_x = s.p.s[0] - s.rad;
+	b.max_x = s.p.s[0] + s.rad;
+	b.min_y = s.p.s[1] - s.rad;
+	b.max_y = s.p.s[1] + s.rad;
+	b.min_z = s.p.s[2] - s.rad;
+	b.max_z = s.p.s[2] + s.rad;
 
 	return b;
 }
@@ -63,12 +63,12 @@ Bound CLBVH::getBound(Triangle t)
 {
 	Bound b;
 
-	b.min_x = min3(t.p1.x, t.p2.x, t.p3.x);//m_pois[t.p1].p.x, m_pois[t.p2].p.x, m_pois[t.p3].p.x);
-	b.max_x = max3(t.p1.x, t.p2.x, t.p3.x);//m_pois[t.p1].p.x, m_pois[t.p2].p.x, m_pois[t.p3].p.x);
-	b.min_y = min3(t.p1.y, t.p2.y, t.p3.y);//m_pois[t.p1].p.y, m_pois[t.p2].p.y, m_pois[t.p3].p.y);
-	b.max_y = max3(t.p1.y, t.p2.y, t.p3.y);//m_pois[t.p1].p.y, m_pois[t.p2].p.y, m_pois[t.p3].p.y);
-	b.min_z = min3(t.p1.z, t.p2.z, t.p3.z);//m_pois[t.p1].p.z, m_pois[t.p2].p.z, m_pois[t.p3].p.z);
-	b.max_z = max3(t.p1.z, t.p2.z, t.p3.z);//m_pois[t.p1].p.z, m_pois[t.p2].p.z, m_pois[t.p3].p.z);
+	b.min_x = min3(t.p1.s[0], t.p2.s[0], t.p3.s[0]);//m_pois[t.p1].p.x, m_pois[t.p2].p.x, m_pois[t.p3].p.x);
+	b.max_x = max3(t.p1.s[0], t.p2.s[0], t.p3.s[0]);//m_pois[t.p1].p.x, m_pois[t.p2].p.x, m_pois[t.p3].p.x);
+	b.min_y = min3(t.p1.s[1], t.p2.s[1], t.p3.s[1]);//m_pois[t.p1].p.y, m_pois[t.p2].p.y, m_pois[t.p3].p.y);
+	b.max_y = max3(t.p1.s[1], t.p2.s[1], t.p3.s[1]);//m_pois[t.p1].p.y, m_pois[t.p2].p.y, m_pois[t.p3].p.y);
+	b.min_z = min3(t.p1.s[2], t.p2.s[2], t.p3.s[2]);//m_pois[t.p1].p.z, m_pois[t.p2].p.z, m_pois[t.p3].p.z);
+	b.max_z = max3(t.p1.s[2], t.p2.s[2], t.p3.s[2]);//m_pois[t.p1].p.z, m_pois[t.p2].p.z, m_pois[t.p3].p.z);
 
 	return b;
 }
@@ -107,18 +107,18 @@ CLBVH::CLBVH(Shape *shapes, int shapeCnt, cl_command_queue cq, cl_context ctx, c
 		else if (m_shapes[i].type == TRIANGLE)
 		{
 			m_shapes[i].b = getBound(m_shapes[i].t);
-			p.x = (m_shapes[i].b.min_x + m_shapes[i].b.max_x) / 2.0f, //(m_pois[m_shapes[i].t.p1].p.x + m_pois[m_shapes[i].t.p2].p.x + m_pois[m_shapes[i].t.p3].p.x) / 3.0f,
-			p.y = (m_shapes[i].b.min_y + m_shapes[i].b.max_y) / 2.0f, //(m_pois[m_shapes[i].t.p1].p.y + m_pois[m_shapes[i].t.p2].p.y + m_pois[m_shapes[i].t.p3].p.y) / 3.0f,
-			p.z = (m_shapes[i].b.min_z + m_shapes[i].b.max_z) / 2.0f; // (m_pois[m_shapes[i].t.p1].p.z + m_pois[m_shapes[i].t.p2].p.z + m_pois[m_shapes[i].t.p3].p.z) / 3.0f;
+			p.s[0] = (m_shapes[i].b.min_x + m_shapes[i].b.max_x) / 2.0f, //(m_pois[m_shapes[i].t.p1].p.x + m_pois[m_shapes[i].t.p2].p.x + m_pois[m_shapes[i].t.p3].p.x) / 3.0f,
+			p.s[1] = (m_shapes[i].b.min_y + m_shapes[i].b.max_y) / 2.0f, //(m_pois[m_shapes[i].t.p1].p.y + m_pois[m_shapes[i].t.p2].p.y + m_pois[m_shapes[i].t.p3].p.y) / 3.0f,
+			p.s[2] = (m_shapes[i].b.min_z + m_shapes[i].b.max_z) / 2.0f; // (m_pois[m_shapes[i].t.p1].p.z + m_pois[m_shapes[i].t.p2].p.z + m_pois[m_shapes[i].t.p3].p.z) / 3.0f;
 		}
 
 		// find min and max coordinates
-		if (p.x < min_x) min_x = p.x;
-		if (p.x > max_x) max_x = p.x;
-		if (p.y < min_y) min_y = p.y;
-		if (p.y > max_y) max_y = p.y;
-		if (p.z < min_z) min_z = p.z;
-		if (p.z > max_z) max_z = p.z;
+		if (p.s[0] < min_x) min_x = p.s[0];
+		if (p.s[0] > max_x) max_x = p.s[0];
+		if (p.s[1] < min_y) min_y = p.s[1];
+		if (p.s[1] > max_y) max_y = p.s[1];
+		if (p.s[2] < min_z) min_z = p.s[2];
+		if (p.s[2] > max_z) max_z = p.s[2];
 	}
 
 	for (unsigned int i = 0; i < m_shapeCnt; i++)
@@ -135,23 +135,23 @@ CLBVH::CLBVH(Shape *shapes, int shapeCnt, cl_command_queue cq, cl_context ctx, c
 		}
 		else if (m_shapes[i].type == TRIANGLE)
 		{
-			float min_x = min3(m_shapes[i].t.p1.x, m_shapes[i].t.p2.x, m_shapes[i].t.p3.x);//m_pois[m_shapes[i].t.p1].p.x, m_pois[m_shapes[i].t.p2].p.x, m_pois[m_shapes[i].t.p3].p.x);
-			float min_y = min3(m_shapes[i].t.p1.y, m_shapes[i].t.p2.y, m_shapes[i].t.p3.y);//m_pois[m_shapes[i].t.p1].p.y, m_pois[m_shapes[i].t.p2].p.y, m_pois[m_shapes[i].t.p3].p.y);
-			float min_z = min3(m_shapes[i].t.p1.z, m_shapes[i].t.p2.z, m_shapes[i].t.p3.z);//m_pois[m_shapes[i].t.p1].p.z, m_pois[m_shapes[i].t.p2].p.z, m_pois[m_shapes[i].t.p3].p.z);
+			float min_x = min3(m_shapes[i].t.p1.s[0], m_shapes[i].t.p2.s[0], m_shapes[i].t.p3.s[0]);//m_pois[m_shapes[i].t.p1].p.x, m_pois[m_shapes[i].t.p2].p.x, m_pois[m_shapes[i].t.p3].p.x);
+			float min_y = min3(m_shapes[i].t.p1.s[1], m_shapes[i].t.p2.s[1], m_shapes[i].t.p3.s[1]);//m_pois[m_shapes[i].t.p1].p.y, m_pois[m_shapes[i].t.p2].p.y, m_pois[m_shapes[i].t.p3].p.y);
+			float min_z = min3(m_shapes[i].t.p1.s[2], m_shapes[i].t.p2.s[2], m_shapes[i].t.p3.s[2]);//m_pois[m_shapes[i].t.p1].p.z, m_pois[m_shapes[i].t.p2].p.z, m_pois[m_shapes[i].t.p3].p.z);
 
-			float max_x = max3(m_shapes[i].t.p1.x, m_shapes[i].t.p2.x, m_shapes[i].t.p3.x);//m_pois[m_shapes[i].t.p1].p.x, m_pois[m_shapes[i].t.p2].p.x, m_pois[m_shapes[i].t.p3].p.x);
-			float max_y = max3(m_shapes[i].t.p1.y, m_shapes[i].t.p2.y, m_shapes[i].t.p3.y);//m_pois[m_shapes[i].t.p1].p.y, m_pois[m_shapes[i].t.p2].p.y, m_pois[m_shapes[i].t.p3].p.y);
-			float max_z = max3(m_shapes[i].t.p1.z, m_shapes[i].t.p2.z, m_shapes[i].t.p3.z);//m_pois[m_shapes[i].t.p1].p.z, m_pois[m_shapes[i].t.p2].p.z, m_pois[m_shapes[i].t.p3].p.z);
+			float max_x = max3(m_shapes[i].t.p1.s[0], m_shapes[i].t.p2.s[0], m_shapes[i].t.p3.s[0]);//m_pois[m_shapes[i].t.p1].p.x, m_pois[m_shapes[i].t.p2].p.x, m_pois[m_shapes[i].t.p3].p.x);
+			float max_y = max3(m_shapes[i].t.p1.s[1], m_shapes[i].t.p2.s[1], m_shapes[i].t.p3.s[1]);//m_pois[m_shapes[i].t.p1].p.y, m_pois[m_shapes[i].t.p2].p.y, m_pois[m_shapes[i].t.p3].p.y);
+			float max_z = max3(m_shapes[i].t.p1.s[2], m_shapes[i].t.p2.s[2], m_shapes[i].t.p3.s[2]);//m_pois[m_shapes[i].t.p1].p.z, m_pois[m_shapes[i].t.p2].p.z, m_pois[m_shapes[i].t.p3].p.z);
 
-			p.x = (min_x + max_x) / 2.0f;//(m_pois[m_shapes[i].t.p1].p.x + m_pois[m_shapes[i].t.p2].p.x + m_pois[m_shapes[i].t.p3].p.x) / 3.0f;
-			p.y = (min_y + max_y) / 2.0f;//(m_pois[m_shapes[i].t.p1].p.y + m_pois[m_shapes[i].t.p2].p.y + m_pois[m_shapes[i].t.p3].p.y) / 3.0f;
-			p.z = (min_z + max_z) / 2.0f;//(m_pois[m_shapes[i].t.p1].p.z + m_pois[m_shapes[i].t.p2].p.z + m_pois[m_shapes[i].t.p3].p.z) / 3.0f;
+			p.s[0] = (min_x + max_x) / 2.0f;//(m_pois[m_shapes[i].t.p1].p.x + m_pois[m_shapes[i].t.p2].p.x + m_pois[m_shapes[i].t.p3].p.x) / 3.0f;
+			p.s[1] = (min_y + max_y) / 2.0f;//(m_pois[m_shapes[i].t.p1].p.y + m_pois[m_shapes[i].t.p2].p.y + m_pois[m_shapes[i].t.p3].p.y) / 3.0f;
+			p.s[2] = (min_z + max_z) / 2.0f;//(m_pois[m_shapes[i].t.p1].p.z + m_pois[m_shapes[i].t.p2].p.z + m_pois[m_shapes[i].t.p3].p.z) / 3.0f;
 		}
 
 		// get the first 10 bits of each coordinate 
-		unsigned int a = (unsigned int)(((p.x - min_x) / (max_x - min_x)) * CODE_OFFSET);
-		unsigned int b = (unsigned int)(((p.y - min_y) / (max_y - min_y)) * CODE_OFFSET);
-		unsigned int c = (unsigned int)(((p.z - min_z) / (max_z - min_z)) * CODE_OFFSET);
+		unsigned int a = (unsigned int)(((p.s[0] - min_x) / (max_x - min_x)) * CODE_OFFSET);
+		unsigned int b = (unsigned int)(((p.s[1] - min_y) / (max_y - min_y)) * CODE_OFFSET);
+		unsigned int c = (unsigned int)(((p.s[2] - min_z) / (max_z - min_z)) * CODE_OFFSET);
 
 		// combine into 30 bits morton code
 		for (unsigned int j = 0; j < CODE_LENGTH; j++) {

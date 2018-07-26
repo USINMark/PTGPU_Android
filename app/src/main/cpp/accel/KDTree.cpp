@@ -6,12 +6,12 @@ Bound KDTree::getBound(Sphere s)
 {
 	Bound b;
 
-	b.min_x = s.p.x - s.rad;
-	b.max_x = s.p.x + s.rad;
-	b.min_y = s.p.y - s.rad;
-	b.max_y = s.p.y + s.rad;
-	b.min_z = s.p.z - s.rad;
-	b.max_z = s.p.z + s.rad;
+	b.min_x = s.p.s[0] - s.rad;
+	b.max_x = s.p.s[0] + s.rad;
+	b.min_y = s.p.s[1] - s.rad;
+	b.max_y = s.p.s[1] + s.rad;
+	b.min_z = s.p.s[2] - s.rad;
+	b.max_z = s.p.s[2] + s.rad;
 
 	return b;
 }
@@ -20,12 +20,12 @@ Bound KDTree::getBound(Triangle t)
 {
 	Bound b;
 
-	b.min_x = min3(t.p1.x, t.p2.x, t.p3.x);//[t.p1].p.x, m_pois[t.p2].p.x, m_pois[t.p3].p.x);
-	b.max_x = max3(t.p1.x, t.p2.x, t.p3.x);//m_pois[t.p1].p.x, m_pois[t.p2].p.x, m_pois[t.p3].p.x);
-	b.min_y = min3(t.p1.y, t.p2.y, t.p3.y);//m_pois[t.p1].p.y, m_pois[t.p2].p.y, m_pois[t.p3].p.y);
-	b.max_y = max3(t.p1.y, t.p2.y, t.p3.y);//m_pois[t.p1].p.y, m_pois[t.p2].p.y, m_pois[t.p3].p.y);
-	b.min_z = min3(t.p1.z, t.p2.z, t.p3.z);//m_pois[t.p1].p.z, m_pois[t.p2].p.z, m_pois[t.p3].p.z);
-	b.max_z = max3(t.p1.z, t.p2.z, t.p3.z);//m_pois[t.p1].p.z, m_pois[t.p2].p.z, m_pois[t.p3].p.z);
+	b.min_x = min3(t.p1.s[0], t.p2.s[0], t.p3.s[0]);//[t.p1].p.x, m_pois[t.p2].p.x, m_pois[t.p3].p.x);
+	b.max_x = max3(t.p1.s[0], t.p2.s[0], t.p3.s[0]);//m_pois[t.p1].p.x, m_pois[t.p2].p.x, m_pois[t.p3].p.x);
+	b.min_y = min3(t.p1.s[1], t.p2.s[1], t.p3.s[1]);//m_pois[t.p1].p.y, m_pois[t.p2].p.y, m_pois[t.p3].p.y);
+	b.max_y = max3(t.p1.s[1], t.p2.s[1], t.p3.s[1]);//m_pois[t.p1].p.y, m_pois[t.p2].p.y, m_pois[t.p3].p.y);
+	b.min_z = min3(t.p1.s[2], t.p2.s[2], t.p3.s[2]);//m_pois[t.p1].p.z, m_pois[t.p2].p.z, m_pois[t.p3].p.z);
+	b.max_z = max3(t.p1.s[2], t.p2.s[2], t.p3.s[2]);//m_pois[t.p1].p.z, m_pois[t.p2].p.z, m_pois[t.p3].p.z);
 
 	return b;
 }
@@ -49,9 +49,9 @@ Vec KDTree::getMidpoint(Triangle t)
 {
 	Vec v;
 
-	v.x = (t.p1.x, t.p2.x, t.p3.x) / 3.0f;// m_pois[t.p1].p.x + m_pois[t.p2].p.x + m_pois[t.p3].p.x) / 3.0f;
-	v.y = (t.p1.y, t.p2.y, t.p3.y) / 3.0f;// m_pois[t.p1].p.y + m_pois[t.p2].p.y + m_pois[t.p3].p.y) / 3.0f;
-	v.z = (t.p1.z, t.p2.z, t.p3.z) / 3.0f;// m_pois[t.p1].p.z + m_pois[t.p2].p.z + m_pois[t.p3].p.z) / 3.0f;
+	v.s[0] = (t.p1.s[0], t.p2.s[0], t.p3.s[0]) / 3.0f;// m_pois[t.p1].p.x + m_pois[t.p2].p.x + m_pois[t.p3].p.x) / 3.0f;
+	v.s[1] = (t.p1.s[1], t.p2.s[1], t.p3.s[1]) / 3.0f;// m_pois[t.p1].p.y + m_pois[t.p2].p.y + m_pois[t.p3].p.y) / 3.0f;
+	v.s[2] = (t.p1.s[2], t.p2.s[2], t.p3.s[2]) / 3.0f;// m_pois[t.p1].p.z + m_pois[t.p2].p.z + m_pois[t.p3].p.z) / 3.0f;
 
 	return v;
 }
@@ -118,7 +118,7 @@ KDTreeNode* KDTree::build(std::vector<Shape *> s, int depth)
 	Vec midpoint;		
 	float shapesRecp = 1.0 / s.size();
 
-	midpoint.x = midpoint.y = midpoint.z = 0.0;
+	midpoint.s[0] = midpoint.s[1] = midpoint.s[2] = 0.0;
 	node->box = getBound(*s[0]);
 
 	for (long i = 1; i < s.size(); i++)
@@ -127,8 +127,8 @@ KDTreeNode* KDTree::build(std::vector<Shape *> s, int depth)
 
 		Vec m = getMidpoint(*s[i]);
 
-		m.x *= shapesRecp, m.y *= shapesRecp, m.z *= shapesRecp;
-		midpoint.x += m.x, midpoint.y += m.y, midpoint.z += m.z;
+		m.s[0] *= shapesRecp, m.s[1] *= shapesRecp, m.s[2] *= shapesRecp;
+		midpoint.s[0] += m.s[0], midpoint.s[1] += m.s[1], midpoint.s[2] += m.s[2];
 	}
 	
 	std::vector<Shape *> left_shapes;
@@ -140,13 +140,13 @@ KDTreeNode* KDTree::build(std::vector<Shape *> s, int depth)
 	{
 		switch (axis) {
 		case 0://중앙 값보다 크면 오른쪽 트리에, 아니면 왼쪽 트리에 넣는다
-			midpoint.x >= getMidpoint(*s[i]).x ? right_shapes.push_back(s[i]) : left_shapes.push_back(s[i]);
+			midpoint.s[0] >= getMidpoint(*s[i]).s[0] ? right_shapes.push_back(s[i]) : left_shapes.push_back(s[i]);
 			break;
 		case 1:
-			midpoint.y >= getMidpoint(*s[i]).y ? right_shapes.push_back(s[i]) : left_shapes.push_back(s[i]);
+			midpoint.s[1] >= getMidpoint(*s[i]).s[1] ? right_shapes.push_back(s[i]) : left_shapes.push_back(s[i]);
 			break;
 		case 2:
-			midpoint.z >= getMidpoint(*s[i]).z ? right_shapes.push_back(s[i]) : left_shapes.push_back(s[i]);
+			midpoint.s[2] >= getMidpoint(*s[i]).s[2] ? right_shapes.push_back(s[i]) : left_shapes.push_back(s[i]);
 			break;
 		}
 	}

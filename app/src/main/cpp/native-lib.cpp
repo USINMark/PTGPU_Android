@@ -69,8 +69,8 @@ JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_initSmallPtGPU(JNIEnv* env, job
 extern "C" JNIEXPORT void
 JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_reinitCamera(JNIEnv* env, jobject /* this */, jfloat origx, jfloat origy, jfloat origz, jfloat targx, jfloat targy, jfloat targz)
 {
-    camera.orig.x = origx,camera.orig.y = origy, camera.orig.z = origz;
-    camera.target.x = targx, camera.target.y = targy, camera.target.z = targz;
+    camera.orig.s[0] = origx,camera.orig.s[1] = origy, camera.orig.s[2] = origz;
+    camera.target.s[0] = targx, camera.target.s[1] = targy, camera.target.s[2] = targz;
 
     ReInit(0);
 }

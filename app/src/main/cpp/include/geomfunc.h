@@ -141,8 +141,8 @@ void UniformSampleSphere(const float u1, const float u2, Vec *v) {
 
 bool intersection_bound_test(const Ray r, Bound bound) {
     float t_min, t_max, t_xmin, t_xmax, t_ymin, t_ymax, t_zmin, t_zmax;
-    float x_a = 1.0/r.d.x, y_a = 1.0/r.d.y, z_a = 1.0/r.d.z;
-    float  x_e = r.o.x, y_e = r.o.y, z_e = r.o.z;
+    float x_a = 1.0/r.d.s[0], y_a = 1.0/r.d.s[1], z_a = 1.0/r.d.s[2];
+    float  x_e = r.o.s[0], y_e = r.o.s[1], z_e = r.o.s[2];
 
 	// calculate t interval in x-axis
 	if (x_a >= 0) {
@@ -574,7 +574,7 @@ void RadianceOnePathTracing(
 		vassign(w, nl);
 
 		Vec u, a;
-		if (fabs(w.x) > .1f) {
+		if (fabs(w.s[0]) > .1f) {
 			vinit(a, 0.f, 1.f, 0.f);
 		} else {
 			vinit(a, 1.f, 0.f, 0.f);

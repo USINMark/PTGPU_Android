@@ -155,8 +155,8 @@ bool ReadTxt(char *fileName) {
 
 	// part 1: gamma correction, sky colors
 	c = fscanf(f, "gamma %f  sky1 %f %f %f  sky2 %f %f %f\n", &scene.gammaCorrection,
-		&scene.skyColor1.x, &scene.skyColor1.y, &scene.skyColor1.z,
-		&scene.skyColor2.x, &scene.skyColor2.y, &scene.skyColor2.z);
+		&scene.skyColor1.s[0], &scene.skyColor1.s[1], &scene.skyColor1.s[2],
+		&scene.skyColor2.s[0], &scene.skyColor2.s[1], &scene.skyColor2.s[2]);
 	if (c != 7) {
 		scene.gammaCorrection = 2.2f;
 		vinit(scene.skyColor1, 0.15f, 0.3f, 0.5f);
@@ -165,8 +165,8 @@ bool ReadTxt(char *fileName) {
 
 	// part 2: camera configuration: camera eye.x eye.y eye.z  target.x target.y target.z
 	c = fscanf(f, "camera %f %f %f  %f %f %f\n",
-		&camera.orig.x, &camera.orig.y, &camera.orig.z,
-		&camera.target.x, &camera.target.y, &camera.target.z);
+		&camera.orig.s[0], &camera.orig.s[1], &camera.orig.s[2],
+		&camera.target.s[0], &camera.target.s[1], &camera.target.s[2]);
 
 	camera.pitch = 0;
 	camera.yaw = 0;
@@ -208,7 +208,7 @@ bool ReadTxt(char *fileName) {
 		if (strcmp(materialTypeString, "matte") == 0) {
 			material->type = MATTE;
 			readValuesCount = fscanf(f, "%f %f %f  %f\n",
-				&material->kd.x, &material->kd.y, &material->kd.z,
+				&material->kd.s[0], &material->kd.s[1], &material->kd.s[2],
 				&material->sigma);
 			if (readValuesCount != 4) {
 				fprintf(stderr, "Failed to read matte material descriptor. Expected 4, found %d value(s)\n", readValuesCount);
@@ -224,8 +224,8 @@ bool ReadTxt(char *fileName) {
 		else if (strcmp(materialTypeString, "plastic") == 0) {
 			material->type = PLASTIC;
 			readValuesCount = fscanf(f, "%f %f %f  %f %f %f  %f\n",
-				&material->kd.x, &material->kd.y, &material->kd.z,
-				&material->ks.x, &material->ks.y, &material->ks.z,
+				&material->kd.s[0], &material->kd.s[1], &material->kd.s[2],
+				&material->ks.s[0], &material->ks.s[1], &material->ks.s[2],
 				&material->roughness);
 			if (readValuesCount != 7) {
 				fprintf(stderr, "Failed to read plastic material descriptor. Expected 4, found %d value(s)\n", readValuesCount);
@@ -264,9 +264,9 @@ bool ReadTxt(char *fileName) {
 			// line x: sphere     radius  xyz  emission  color  reflection
 			readValuesCount = fscanf(f, "%f  %f %f %f  %f %f %f  %f %f %f  %u\n",
 				&obj->s.radius,
-				&obj->s.center.x, &obj->s.center.y, &obj->s.center.z,
-				&obj->emission.x, &obj->emission.y, &obj->emission.z,
-				&obj->color.x, &obj->color.y, &obj->color.z,
+				&obj->s.center.s[0], &obj->s.center.s[1], &obj->s.center.s[2],
+				&obj->emission.s[0], &obj->emission.s[1], &obj->emission.s[2],
+				&obj->color.s[0], &obj->color.s[1], &obj->color.s[2],
 				&mat);
 
 			if (readValuesCount != 11) {
@@ -288,11 +288,11 @@ bool ReadTxt(char *fileName) {
 			ObjectTemp *tri = obj;
 
 			readValuesCount = fscanf(f, "%f %f %f  %f %f %f  %f %f %f  %f %f %f  %f %f %f  %d\n",
-				&obj->t.p1.x, &obj->t.p1.y, &obj->t.p1.z,
-				&obj->t.p2.x, &obj->t.p2.y, &obj->t.p2.z,
-				&obj->t.p3.x, &obj->t.p3.y, &obj->t.p3.z,
-				&obj->emission.x, &obj->emission.y, &obj->emission.z,
-				&obj->color.x, &obj->color.y, &obj->color.z,
+				&obj->t.p1.s[0], &obj->t.p1.s[1], &obj->t.p1.s[2],
+				&obj->t.p2.s[0], &obj->t.p2.s[1], &obj->t.p2.s[2],
+				&obj->t.p3.s[0], &obj->t.p3.s[1], &obj->t.p3.s[2],
+				&obj->emission.s[0], &obj->emission.s[1], &obj->emission.s[2],
+				&obj->color.s[0], &obj->color.s[1], &obj->color.s[2],
 				&mat);
 
 			if (readValuesCount != 16) {
@@ -316,7 +316,7 @@ bool ReadTxt(char *fileName) {
 			tri->area = norm(normal) * 0.5f;
 			vnorm(normal);
 
-			LOGI("tri #%d normal: %.2f %.2f %.2f\n", lineIndex + addedObjects, normal.x, normal.y, normal.z);
+			LOGI("tri #%d normal: %.2f %.2f %.2f\n", lineIndex + addedObjects, normal.s[0], normal.s[1], normal.s[2]);
 
 
 			if (!viszero(tri->emission)) {
@@ -334,10 +334,10 @@ bool ReadTxt(char *fileName) {
 
 			obj->type = MOD;
 			readValuesCount = fscanf(f, "%s  %f %f %f  %f %f %f  %f %f %f  %f %f %f  %d\n", modelFilePath,
-				&modelPosition.x, &modelPosition.y, &modelPosition.z,
-				&modelScale.x, &modelScale.y, &modelScale.z,
-				&obj->emission.x, &obj->emission.y, &obj->emission.z,
-				&obj->color.x, &obj->color.y, &obj->color.z,
+				&modelPosition.s[0], &modelPosition.s[1], &modelPosition.s[2],
+				&modelScale.s[0], &modelScale.s[1], &modelScale.s[2],
+				&obj->emission.s[0], &obj->emission.s[1], &obj->emission.s[2],
+				&obj->color.s[0], &obj->color.s[1], &obj->color.s[2],
 				&mat);
 
 			if (readValuesCount != 14) {
@@ -512,7 +512,7 @@ bool ReadScene(const char *fileName) {
 	}
 
 	/* Read the camera position */
-	int c = fscanf(f,"camera %f %f %f %f %f %f\n", &camera.orig.x, &camera.orig.y, &camera.orig.z, &camera.target.x, &camera.target.y, &camera.target.z);
+	int c = fscanf(f,"camera %f %f %f %f %f %f\n", &camera.orig.s[0], &camera.orig.s[1], &camera.orig.s[2], &camera.target.s[0], &camera.target.s[1], &camera.target.s[2]);
 	if (c != 6) {
         fclose(f);
 		LOGE("Failed to read 6 camera parameters: %d\n", c);
@@ -540,9 +540,9 @@ bool ReadScene(const char *fileName) {
 		int mat;
 		int c = fscanf(f,"sphere %f  %f %f %f  %f %f %f  %f %f %f  %d\n",
 				&s->s.rad,
-				&s->s.p.x, &s->s.p.y, &s->s.p.z,
-				&s->e.x, &s->e.y, &s->e.z,
-				&s->c.x, &s->c.y, &s->c.z,
+				&s->s.p.s[0], &s->s.p.s[1], &s->s.p.s[2],
+				&s->e.s[0], &s->e.s[1], &s->e.s[2],
+				&s->c.s[0], &s->c.s[1], &s->c.s[2],
 				&mat);
 
 		switch (mat) {
@@ -584,9 +584,9 @@ bool ReadPly(char *fileName) {
 	};
 
 	PlyProperty vert_props[] = { /* list of property information for a vertex */
-		{ (char *)"x", PLY_FLOAT, PLY_FLOAT, offsetof(Vec,x), 0, 0, 0, 0 },
-		{ (char *)"y", PLY_FLOAT, PLY_FLOAT, offsetof(Vec,y), 0, 0, 0, 0 },
-		{ (char *)"z", PLY_FLOAT, PLY_FLOAT, offsetof(Vec,z), 0, 0, 0, 0 },
+		{ (char *)"x", PLY_FLOAT, PLY_FLOAT, offsetof(Vec,s[0]), 0, 0, 0, 0 },
+		{ (char *)"y", PLY_FLOAT, PLY_FLOAT, offsetof(Vec,s[1]), 0, 0, 0, 0 },
+		{ (char *)"z", PLY_FLOAT, PLY_FLOAT, offsetof(Vec,s[2]), 0, 0, 0, 0 },
 	};
 
 	PlyProperty face_props[] = { /* list of property information for a vertex */
@@ -611,8 +611,8 @@ bool ReadPly(char *fileName) {
 	//int num_obj_info;
 	//char **obj_info;
 
-	camera.orig.x = 0.0f, camera.orig.y = 0.0f, camera.orig.z = 75.0f,
-	camera.target.x = 0.0f, camera.target.y = 0.0f, camera.target.z = 0.0f;
+	camera.orig.s[0] = 0.0f, camera.orig.s[1] = 0.0f, camera.orig.s[2] = 75.0f,
+	camera.target.s[0] = 0.0f, camera.target.s[1] = 0.0f, camera.target.s[2] = 0.0f;
 
 	/* open a PLY file for reading */
 	ply = ply_open_for_reading(fileName, &nelems, &elist, &file_type, &version);
