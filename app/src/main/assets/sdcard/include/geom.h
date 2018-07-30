@@ -40,7 +40,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef EXP_KERNEL
 typedef struct {
-	int x, y;
+	short x, y;
 	Vec p;
 } Result;
 #endif
@@ -84,10 +84,12 @@ typedef struct {
 	Vec e, c; /* emission, color */
 	enum Refl refl;
 
-	int index;
-	unsigned int morton_code;
+    int index;
+    float area;
+#if (ACCELSTR == 1)
 	Bound b;
-	float area;
+    unsigned int morton_code;
+#endif
 } Shape;
 
 #endif	/* _GEOM_H */

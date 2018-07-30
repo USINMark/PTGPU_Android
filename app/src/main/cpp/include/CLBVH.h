@@ -1,4 +1,10 @@
-#pragma once
+
+#ifndef CLBVH_H
+#define CLBVH_H
+
+#include "../../assets/sdcard/include/geom.h"
+
+#if (ACCELSTR == 1)
 
 #include <float.h>
 #ifdef WIN32
@@ -8,7 +14,6 @@
 #endif
 #include <stdlib.h>
 
-#include "../../assets/sdcard/include/geom.h"
 #include "../../assets/sdcard/include/BVHNodeGPU.h"
 #include "CL/cl.h"
 #include "native-lib.h"
@@ -46,3 +51,5 @@ public:
 	void getTrees(BVHNodeGPU **ppbtn, BVHNodeGPU **ppbtl);
 	int *bubblesort_Geometry(Geometry *geo);
 };
+#endif //(ACCELSTR == 1)
+#endif //CLBVH_H

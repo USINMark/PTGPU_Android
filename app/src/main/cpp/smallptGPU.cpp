@@ -62,7 +62,7 @@ bool Read(char *fileName, bool *walllight);
 Ray *ray;
 Vec *throughput;
 Result *result;
-int *specularBounce, *terminated;
+char *specularBounce, *terminated;
 
 static cl_mem rayBuffer, throughputBuffer, specularBounceBuffer, terminatedBuffer, resultBuffer;
 static cl_kernel kernelGen, kernelRadiance, kernelFill;
@@ -87,8 +87,8 @@ static cl_mem kngBuffer;
 static cl_mem knBuffer;
 KDNodeGPU *pkngbuf;
 int *pknbuf; 
-int kngCnt;
-int knCnt;
+short kngCnt;
+short knCnt;
 #endif
 
 #define MAX_STYPE 255
@@ -105,13 +105,14 @@ static cl_program program;
 
 static Vec *colors;
 static unsigned int *seeds;
-static int currentSample = 0;
+static short currentSample = 0;
 
 /* Options */
 int useGPU = 1;
 int forceWorkSize = 0;
 
-unsigned int workGroupSize = 1, shapeCnt = 0, lightCnt = 0;
+unsigned int workGroupSize = 1;
+short shapeCnt = 0, lightCnt = 0;
 int pixelCount;
 Camera camera;
 Shape *shapes;
@@ -225,14 +226,14 @@ void AllocateBuffers() {
 	throughputBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Vec) *  width * height, NULL, &status);
 	clErrchk(status);
 
-	specularBounce = (int *)malloc(sizeof(int) * width * height);
+	specularBounce = (char *)malloc(sizeof(char) * width * height);
 
-	specularBounceBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int) *  width * height, NULL, &status);
+	specularBounceBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(char) *  width * height, NULL, &status);
 	clErrchk(status);
 
-	terminated = (int *)malloc(sizeof(int) * width * height);
+	terminated = (char *)malloc(sizeof(char) * width * height);
 
-	terminatedBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int) *  width * height, NULL, &status);
+	terminatedBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(char) *  width * height, NULL, &status);
 	clErrchk(status);
 
 	result = (Result *)malloc(sizeof(Result) * width * height);
@@ -738,24 +739,24 @@ unsigned int *DrawAllBoxes(int bwidth, int bheight, float *rCPU, bool bFirst) {
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&seedBuffer));
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&cameraBuffer));
                 clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&shapeBuffer));
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(unsigned int), (void *)&shapeCnt));				
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(unsigned int), (void *)&lightCnt));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&shapeCnt));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&lightCnt));
 #if (ACCELSTR == 1)
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&btnBuffer));
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&btlBuffer));
 #elif (ACCELSTR == 2)
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&kngBuffer));
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(int), (void *)&kngCnt));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&kngCnt));
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&knBuffer));
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(int), (void *)&knCnt));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&knCnt));
 #endif
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(int), (void *)&x));
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(int), (void *)&y));
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(int), (void *)&bwidth));
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(int), (void *)&bheight));
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(int), (void *)&width));
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(int), (void *)&height));
-				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(int), (void *)&currentSample));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&x));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&y));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&bwidth));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&bheight));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&width));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&height));
+				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(short), (void *)&currentSample));
 				clErrchk(clSetKernelArg(kernelBox, index++, sizeof(cl_mem), (void *)&pixelBuffer));
 #ifdef DEBUG_INTERSECTIONS
 				int *debug1 = (int *)malloc(sizeof(int) * shapeCnt);
@@ -912,7 +913,7 @@ unsigned int *DrawFrame() {
 	{
 		int rayCnt = width * height;
         index = 0;
-
+#if 0
 		/* Set kernel arguments */
 		setStartTime = WallClockTime();
 		clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&cameraBuffer));
@@ -930,25 +931,33 @@ unsigned int *DrawFrame() {
 		ExecuteKernel(kernelGen, rayCnt);
 		//clFinish(commandQueue);
 		kernelTotalTime += (WallClockTime() - kernelStartTime);
-		        
+#endif
+        //clErrchk(clEnqueueWriteBuffer(commandQueue, cameraBuffer, CL_TRUE, 0, sizeof(Camera), &camera, 0, NULL, NULL));
+        //clErrchk(clEnqueueWriteBuffer(commandQueue, seedBuffer, CL_TRUE, 0, sizeof(unsigned int) * width * height * 2, seeds, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) *  width * height, ray, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) *  width * height, throughput, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(char) *  width * height, specularBounce, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(char) *  width * height, terminated, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) *  width * height, result, 0, NULL, NULL));
+
 		for (int i = 0; i < MAX_DEPTH; i++)
 		{
 			index = 0;
 
 			setStartTime = WallClockTime();
 			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(cl_mem), (void *)&shapeBuffer));
-			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(unsigned int), (void *)&shapeCnt));
-            clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(unsigned int), (void *)&lightCnt));
-            clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(int), (void *)&width));
-            clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(int), (void *)&height));
+			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(short), (void *)&shapeCnt));
+            clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(short), (void *)&lightCnt));
+            clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(short), (void *)&width));
+            clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(short), (void *)&height));
 #if (ACCELSTR == 1)
 			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(cl_mem), (void *)&btnBuffer));
 			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(cl_mem), (void *)&btlBuffer));
 #elif (ACCELSTR == 2)
 			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(cl_mem), (void *)&kngBuffer));
-			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(int), (void *)&kngCnt));
+			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(short), (void *)&kngCnt));
 			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(cl_mem), (void *)&knBuffer));
-			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(int), (void *)&knCnt));
+			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(short), (void *)&knCnt));
 #endif
 			clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(cl_mem), (void *)&rayBuffer));
             clErrchk(clSetKernelArg(kernelRadiance, index++, sizeof(cl_mem), (void *)&seedBuffer));
@@ -967,9 +976,9 @@ unsigned int *DrawFrame() {
 		index = 0;
 
 		setStartTime = WallClockTime();
-		clErrchk(clSetKernelArg(kernelFill, index++, sizeof(int), (void *)&width));
-		clErrchk(clSetKernelArg(kernelFill, index++, sizeof(int), (void *)&height));
-		clErrchk(clSetKernelArg(kernelFill, index++, sizeof(int), (void *)&currentSample));
+		clErrchk(clSetKernelArg(kernelFill, index++, sizeof(short), (void *)&width));
+		clErrchk(clSetKernelArg(kernelFill, index++, sizeof(short), (void *)&height));
+		clErrchk(clSetKernelArg(kernelFill, index++, sizeof(short), (void *)&currentSample));
         clErrchk(clSetKernelArg(kernelFill, index++, sizeof(cl_mem), (void *)&colorBuffer));
         clErrchk(clSetKernelArg(kernelFill, index++, sizeof(cl_mem), (void *)&resultBuffer));
 		clErrchk(clSetKernelArg(kernelFill, index++, sizeof(cl_mem), (void *)&pixelBuffer));
@@ -997,20 +1006,20 @@ unsigned int *DrawFrame() {
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *)&seedBuffer));
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *) &cameraBuffer));
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *)&shapeBuffer));
-	clErrchk(clSetKernelArg(kernel, index++, sizeof(unsigned int), (void *) &shapeCnt));
-	clErrchk(clSetKernelArg(kernel, index++, sizeof(unsigned int), (void *)&lightCnt));
+	clErrchk(clSetKernelArg(kernel, index++, sizeof(short), (void *) &shapeCnt));
+	clErrchk(clSetKernelArg(kernel, index++, sizeof(short), (void *)&lightCnt));
 #if (ACCELSTR == 1)	
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *)&btnBuffer));
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *)&btlBuffer));
 #elif (ACCELSTR == 2)
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *)&kngBuffer));
-	clErrchk(clSetKernelArg(kernel, index++, sizeof(int), (void *)&kngCnt));
+	clErrchk(clSetKernelArg(kernel, index++, sizeof(short), (void *)&kngCnt));
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *)&knBuffer));
-	clErrchk(clSetKernelArg(kernel, index++, sizeof(int), (void *)&knCnt));
+	clErrchk(clSetKernelArg(kernel, index++, sizeof(short), (void *)&knCnt));
 #endif
-	clErrchk(clSetKernelArg(kernel, index++, sizeof(int), (void *) &width));
-	clErrchk(clSetKernelArg(kernel, index++, sizeof(int), (void *) &height));
-	clErrchk(clSetKernelArg(kernel, index++, sizeof(int), (void *)&currentSample));
+	clErrchk(clSetKernelArg(kernel, index++, sizeof(short), (void *) &width));
+	clErrchk(clSetKernelArg(kernel, index++, sizeof(short), (void *) &height));
+	clErrchk(clSetKernelArg(kernel, index++, sizeof(short), (void *)&currentSample));
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *) &pixelBuffer));
 #ifdef DEBUG_INTERSECTIONS
     cl_int status;
@@ -1135,6 +1144,29 @@ void ReInit(const int reallocBuffers) {
 #endif
 
     currentSample = 0;
+    int index = 0;
+
+    /* Set kernel arguments */
+    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&cameraBuffer));
+    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&seedBuffer));
+    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(short), (void *)&width));
+    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(short), (void *)&height));
+    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&rayBuffer));
+    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&throughputBuffer));
+    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&specularBounceBuffer));
+    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&terminatedBuffer));
+    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&resultBuffer));
+
+    ExecuteKernel(kernelGen, width * height);
+    clFinish(commandQueue);
+
+    //clErrchk(clEnqueueReadBuffer(commandQueue, cameraBuffer, CL_TRUE, 0, sizeof(Camera), &camera, 0, NULL, NULL));
+    //clErrchk(clEnqueueReadBuffer(commandQueue, seedBuffer, CL_TRUE, 0, sizeof(unsigned int) * width * height * 2, seeds, 0, NULL, NULL));
+    clErrchk(clEnqueueReadBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) *  width * height, ray, 0, NULL, NULL));
+    clErrchk(clEnqueueReadBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) *  width * height, throughput, 0, NULL, NULL));
+    clErrchk(clEnqueueReadBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(char) *  width * height, specularBounce, 0, NULL, NULL));
+    clErrchk(clEnqueueReadBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(char) *  width * height, terminated, 0, NULL, NULL));
+    clErrchk(clEnqueueReadBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) *  width * height, result, 0, NULL, NULL));
 }
 
 #ifdef WIN32
@@ -1463,7 +1495,7 @@ void BuildKDtree()
 
 	for (int i = 0; i < shapeCnt; i++) {
 		shapes[i].index = i;
-		shapes[i].morton_code = 0;
+		//shapes[i].morton_code = 0;
 
 		vs.push_back(&shapes[i]);
 	}

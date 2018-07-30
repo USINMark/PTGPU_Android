@@ -1,5 +1,10 @@
+
 #ifndef KDTREE_H
 #define KDTREE_H
+
+#include "../../assets/sdcard/include/geom.h"
+
+#if (ACCELSTR == 2)
 
 #include <vector>
 #include <queue>
@@ -9,7 +14,6 @@
 #include <stdlib.h>
 #endif
 
-#include "../../assets/sdcard/include/geom.h"
 #include "../../assets/sdcard/include/KDNodeGPU.h"
 
 #define MAX_KDTREEDEPTH 25
@@ -86,6 +90,7 @@ public:
 #endif
 
 	KDTreeNode* build(std::vector<Shape *> s, int depth);
-	void getTrees(KDTreeNode *rootNode, KDNodeGPU **ppkng, int *pkngCnt, int **ppkn, int *pknCnt);
+	void getTrees(KDTreeNode *rootNode, KDNodeGPU **ppkng, short *pkngCnt, int **ppkn, short *pknCnt);
 };
-#endif // KDTREE_H
+#endif //(ACCELSTR == 2)
+#endif //KDTREE_H

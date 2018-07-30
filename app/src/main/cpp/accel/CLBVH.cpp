@@ -1,5 +1,8 @@
 
 #include "../include/CLBVH.h"
+
+#if (ACCELSTR == 1)
+
 #include "../include/AccelCommon.h"
 
 #define BLOCK_SIZE 256
@@ -363,3 +366,4 @@ void CLBVH::getTrees(BVHNodeGPU **ppbtn, BVHNodeGPU **ppbtl)
 	*ppbtn = btn;
 	*ppbtl = btl;
 }
+#endif

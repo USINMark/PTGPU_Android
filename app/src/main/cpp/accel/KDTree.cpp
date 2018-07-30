@@ -1,5 +1,8 @@
 
 #include "../include/KDTree.h"
+
+#if (ACCELSTR == 2)
+
 #include "../include/AccelCommon.h"
 
 Bound KDTree::getBound(Sphere s)
@@ -251,7 +254,7 @@ void KDTree::traverseTreeDFS(KDTreeNode *tnode, int &locNode, int &locShape, KDN
 	}
 }
 
-void KDTree::getTrees(KDTreeNode *rootNode, KDNodeGPU **ppkngbuf, int *pkngCnt, int **ppknbuf, int *pknCnt)
+void KDTree::getTrees(KDTreeNode *rootNode, KDNodeGPU **ppkngbuf, short *pkngCnt, int **ppknbuf, short *pknCnt)
 {
 	int *pknbuf = (int *)malloc(sizeof(int) * m_szbuf), size = pow(2, m_maxdepth + 1);
 	KDNodeGPU *pkngbuf = (KDNodeGPU *)malloc(sizeof(KDNodeGPU) * size);
@@ -265,3 +268,4 @@ void KDTree::getTrees(KDTreeNode *rootNode, KDNodeGPU **ppkngbuf, int *pkngCnt, 
 	*pkngCnt = size;
 	*pknCnt = m_szbuf;
 }
+#endif

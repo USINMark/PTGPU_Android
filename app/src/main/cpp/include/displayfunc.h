@@ -37,8 +37,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define MAX_WALLSUN 9
 
-extern int width;
-extern int height;
+extern short width;
+extern short height;
 extern unsigned int *pixels;
 extern unsigned int renderingFlags;
 extern char captionBuffer[256];
