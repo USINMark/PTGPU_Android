@@ -198,7 +198,7 @@ __global
 __constant
 #endif
  const Shape *shapes,
- const unsigned int shapeCnt,
+ const unsigned short shapeCnt,
 #if (ACCELSTR == 1)
 __constant
 
@@ -210,11 +210,11 @@ __constant
  __constant
  
  KDNodeGPU *kng, 
- int kngCnt, 
+ short kngCnt, 
 __constant
 
  int *kn, 
- int knCnt, 
+ short knCnt, 
 #endif
  const Ray *r,
  float *t,
@@ -226,7 +226,7 @@ __constant
  ) {
 #if (ACCELSTR == 0)
 	float inf = (*t) = 1e20f;
-	unsigned int i = shapeCnt;
+	short i = shapeCnt;
 	
 	for (; i--;) {
 		float d = 0.0f;
@@ -379,19 +379,126 @@ __global
 __constant
 #endif
  const Shape *shapes,
- const unsigned int shapeCnt,
+ const short shapeCnt,
+#if (ACCELSTR == 1)
+__constant
+
+ BVHNodeGPU *btn,
+__constant
+
+ BVHNodeGPU *btl,
+#elif (ACCELSTR == 2)
+__constant
+
+ KDNodeGPU *kng,
+ short kngCnt,
+__constant
+
+ int *kn,
+ short knCnt,
+#endif
  const Ray *r,
  const float maxt) {
- unsigned int i = shapeCnt - 1;
- for (; i--;) {
-  float d = 0.0f;
-  if (shapes[i].type == SPHERE ) d = SphereIntersect(&shapes[i].s, r);
-  if (shapes[i].type == TRIANGLE ) d = TriangleIntersect(&shapes[i].t, r);
-  if ((d != 0.f) && (d < maxt))
-   return 1;
- }
+#if (ACCELSTR == 0)
+    short i = shapeCnt;
 
- return 0;
+    for (; i--;) {
+        float d = 0.0f;
+        if (shapes[i].type == SPHERE ) d = SphereIntersect(&shapes[i].s, r);
+        if (shapes[i].type == TRIANGLE ) d = TriangleIntersect(&shapes[i].t, r);
+        if ((d != 0.f) && (d < maxt)) 
+            return 1;        
+    }
+
+    return 0;
+#elif (ACCELSTR == 1)
+    // Use static allocation because malloc() can't be called in parallel
+    // Use stack to traverse BVH to save space (cost is O(height))
+    int stack[INTERSECT_STACK_SIZE];
+    int topIndex = INTERSECT_STACK_SIZE;
+    stack[--topIndex] = 0; //btn;
+    int intersected = 0, status = 0;
+
+    // Do while stack is not empty
+    while (topIndex != INTERSECT_STACK_SIZE) {
+        int n = stack[topIndex++];
+
+        if (intersection_bound_test(*r, btn[n].bound)) {
+            if (btn[n].leaf == 0) {
+                stack[--topIndex] = btn[n].nRight;
+                stack[--topIndex] = btn[n].nLeft;
+
+                if (topIndex < 0) {
+                    //printf("Intersect stack not big enough. Increase INTERSECT_STACK_SIZE!\n");
+                    return 0;
+                }
+			}
+			else if (btn[n].leaf == 2) {
+                float d = 0.0f;
+
+			    if (shapes[btl[btn[n].nLeft].nShape].type == SPHERE ) d = SphereIntersect(&shapes[btl[btn[n].nLeft].nShape].s, r);
+				if (shapes[btl[btn[n].nLeft].nShape].type == TRIANGLE ) d = TriangleIntersect(&shapes[btl[btn[n].nLeft].nShape].t, r);
+
+                if (d != 0.0 && d < maxt) {
+                    return 1;
+                }
+
+			    if (shapes[btl[btn[n].nRight].nShape].type == SPHERE ) d = SphereIntersect(&shapes[btl[btn[n].nRight].nShape].s, r);
+				if (shapes[btl[btn[n].nRight].nShape].type == TRIANGLE ) d = TriangleIntersect(&shapes[btl[btn[n].nRight].nShape].t, r);
+
+                if (d != 0.0 && d < maxt) {
+                    return 1;
+                }
+			}
+			else {
+				//printf("Unknown node, %d\n", btn[n].leaf);
+            }
+        }
+    }
+
+    return 0;
+#elif (ACCELSTR == 2)
+	// Use static allocation because malloc() can't be called in parallel
+	// Use stack to traverse BVH to save space (cost is O(height))
+	int stack[INTERSECT_STACK_SIZE];
+	int topIndex = INTERSECT_STACK_SIZE;
+	stack[--topIndex] = 1; //tn;
+	int intersected = 0, status = 0;
+
+	// Do while stack is not empty
+	while (topIndex != INTERSECT_STACK_SIZE) {
+		int n = stack[topIndex++];
+
+		if (intersection_bound_test(*r, kng[n].bound)) {
+			if (kng[n].leaf == 0) {
+				stack[--topIndex] = kng[n].nRight;
+				stack[--topIndex] = kng[n].nLeft;
+
+				if (topIndex < 0) {
+					//printf("Intersect stack not big enough. Increase INTERSECT_STACK_SIZE!\n");
+					return 0;
+				}
+			}
+			else if (kng[n].leaf == 1) {
+				float d = 0.0f;
+
+				for (int i = kng[n].min; i < kng[n].max; i++) {
+					if (shapes[kn[i]].type == SPHERE) d = SphereIntersect(&shapes[kn[i]].s, r);
+					if (shapes[kn[i]].type == TRIANGLE) d = TriangleIntersect(&shapes[kn[i]].t, r);
+
+					if (d != 0.0 && d < maxt) {
+                        return 1;
+                    }
+				}
+			}
+			else {
+				//printf("Unknown node, %d\n", btn[n].leaf);
+			}
+		}
+	}
+
+	return 0;
+#endif
 }
 
 void SampleLights(
@@ -401,8 +508,25 @@ __global
 __constant
 #endif
  const Shape *shapes,
- const unsigned int shapeCnt,
- const unsigned int lightCnt,
+ const short shapeCnt,
+ const short lightCnt,
+#if (ACCELSTR == 1)
+__constant
+
+ BVHNodeGPU *btn,
+__constant
+
+ BVHNodeGPU *btl,
+#elif (ACCELSTR == 2)
+__constant
+
+ KDNodeGPU *kng,
+ short kngCnt,
+__constant
+
+ int *kn,
+ short knCnt,
+#endif
  unsigned int *seed0, unsigned int *seed1,
  const Vec *hitPoint,
  const Vec *normal,
@@ -410,8 +534,8 @@ __constant
  vclr(*result);
  //{ (*result).x = 0.f; (*result).y = 0.f; (*result).z = 0.f; };
 
- unsigned int i;
- unsigned int lightsVisited;
+ short i;
+ short lightsVisited;
 	for (i = 0, lightsVisited = 0; i < shapeCnt && lightsVisited < lightCnt; i++) {
 #ifdef __ANDROID__
 __global
@@ -480,7 +604,13 @@ __constant
 	wo = clamp(wo, 0.f, 1.f);
 	
    const float wi = vdot(shadowRay.d, *normal);//((shadowRay.d).x * (*normal).x + (shadowRay.d).y * (*normal).y + (shadowRay.d).z * (*normal).z);
-   if ((wi > 0.f) && (!IntersectP(shapes, shapeCnt, &shadowRay, len - EPSILON))) {
+   if ((wi > 0.f) && (!IntersectP(shapes, shapeCnt,
+#if (ACCELSTR == 1)
+        btn, btl,
+#elif (ACCELSTR == 2)
+        kng, kngCnt, kn, knCnt,
+#endif
+        &shadowRay, len - EPSILON))) {
     Vec c; vassign(c, light->e); //{ (c).x = (light->e).x; (c).y = (light->e).y; (c).z = (light->e).z; };
     const float s = light->area * wi * wo / (len *len);
     vsmul(c, s, c);
@@ -499,8 +629,8 @@ __global
 __constant
 #endif
  const Shape *shapes,
- const unsigned int shapeCnt, 
- const unsigned int lightCnt,
+ const short shapeCnt, 
+ const short lightCnt,
 #if (ACCELSTR == 1)
 __constant
 
@@ -512,15 +642,15 @@ __constant
 __constant 
  
  KDNodeGPU *kng,
- int kngCnt, 
+ short kngCnt, 
 __constant 
 
  int *kn, 
- int knCnt, 
+ short knCnt, 
 #endif
  Ray *currentRay,
  unsigned int *seed0, unsigned int *seed1, 
- Vec *rad, Vec *throughput, int *specularBounce, int *terminated, 
+ Vec *rad, Vec *throughput, char *specularBounce, char *terminated, 
  Vec *result
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
@@ -562,7 +692,6 @@ __constant
   {
 	vsub(normal, hitPoint, s.s.p);
 	//{ normal.x = (hitPoint).x - (s.s.p).x; normal.y = (hitPoint).y - (s.s.p).y; normal.z = (hitPoint).z - (s.s.p).z; }
-
   }
   else if (s.type == TRIANGLE)
   {
@@ -592,7 +721,6 @@ __constant
   vsmul(nl, invSignDP, normal); 
   //{ float k = (invSignDP); { (nl).x = k * (normal).x; (nl).y = k * (normal).y; (nl).z = k * (normal).z; } };
 
-
    Vec eCol; 
    
    vassign(eCol, s.e);//{ (eCol).x = (s.e).x; (eCol).y = (s.e).y; (eCol).z = (s.e).z; };
@@ -620,7 +748,13 @@ __constant
    //{ (throughput)->x = (throughput)->x * (col).x; (throughput)->y = (throughput)->y * (col).y; (throughput)->z = (throughput)->z * (col).z; };
 
    Vec Ld;
-   SampleLights(shapes, shapeCnt, lightCnt, seed0, seed1, &hitPoint, &nl, &Ld);
+   SampleLights(shapes, shapeCnt, lightCnt,
+#if (ACCELSTR == 1)
+    btn, btl,
+#elif (ACCELSTR == 2)
+    kng, kngCnt, kn, knCnt,
+#endif
+    seed0, seed1, &hitPoint, &nl, &Ld);
    vmul(Ld, *throughput, Ld);
    //{ (Ld).x = (throughput)->x * (Ld).x; (Ld).y = (throughput)->y * (Ld).y; (Ld).z = (throughput)->z * (Ld).z; };
    vadd(*rad, *rad, Ld);
@@ -759,8 +893,8 @@ __global
 __constant
 #endif
  const Shape *shapes,
- const unsigned int shapeCnt, 
- const unsigned int lightCnt,
+ const short shapeCnt, 
+ const short lightCnt,
 #if (ACCELSTR == 1)
 __constant
 
@@ -772,15 +906,13 @@ __constant
 __constant 
  
  KDNodeGPU *kng,
- int kngCnt, 
+ short kngCnt, 
 __constant 
 
  int *kn, 
- int knCnt, 
+ short knCnt, 
 #endif
- const Ray *startRay,
- unsigned int *seed0, unsigned int *seed1,
- Vec *result
+ const Ray *startRay, unsigned int *seed0, unsigned int *seed1, Vec *result
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
  __global float *debug2
@@ -791,8 +923,8 @@ __constant
  Vec throughput; vinit(throughput, 1.f, 1.f, 1.f); //{ (throughput).x = 1.f; (throughput).y = 1.f; (throughput).z = 1.f; };
 
  unsigned int depth = 0;
- int specularBounce = 1;
- int terminated = 0;
+ char specularBounce = 1;
+ char terminated = 0;
  
  for (;; ++depth) {  
   if (depth > MAX_DEPTH) {
@@ -826,8 +958,8 @@ __global
 __constant
 #endif
  const Shape *shapes,
- const unsigned int shapeCnt, 
- const unsigned int lightCnt,
+ const short shapeCnt, 
+ const short lightCnt,
 #if (ACCELSTR == 1)
 __constant
 
@@ -839,11 +971,11 @@ __constant
 __constant 
  
  KDNodeGPU *kng,
- int kngCnt, 
+ short kngCnt, 
 __constant 
 
  int *kn, 
- int knCnt, 
+ short knCnt, 
 #endif
  const Ray *startRay,
  unsigned int *seed0, unsigned int *seed1,
@@ -858,7 +990,7 @@ __constant
  Vec throughput; vinit(throughput, 1.f, 1.f, 1.f); //{ (throughput).x = 1.f; (throughput).y = 1.f; (throughput).z = 1.f; };
 
  unsigned int depth = 0;
- int specularBounce = 1;
+ char specularBounce = 1;
  
  for (;; ++depth) {
 
@@ -947,7 +1079,13 @@ __constant
    //{ (throughput).x = (throughput).x * (obj->c).x; (throughput).y = (throughput).y * (obj->c).y; (throughput).z = (throughput).z * (obj->c).z; };
 
    Vec Ld;
-   SampleLights(shapes, shapeCnt, lightCnt, seed0, seed1, &hitPoint, &nl, &Ld);
+   SampleLights(shapes, shapeCnt, lightCnt,
+#if (ACCELSTR == 1)
+    btn, btl,
+#elif (ACCELSTR == 2)
+    kng, kngCnt, kn, knCnt,
+#endif
+    seed0, seed1, &hitPoint, &nl, &Ld);
    vmul(Ld, throughput, Ld);
    //{ (Ld).x = (throughput).x * (Ld).x; (Ld).y = (throughput).y * (Ld).y; (Ld).z = (throughput).z * (Ld).z; };
    vadd(rad, rad, Ld);
@@ -1042,7 +1180,7 @@ __constant
 void GenerateCameraRay(
  __constant  Camera *camera,
   unsigned int *seed0, unsigned int *seed1,
-  const int width, const int height, const int x, const int y, Ray *ray) {
+  const short width, const short height, const short x, const short y, Ray *ray) {
  const float invWidth = 1.f / width;
  const float invHeight = 1.f / height;
  const float r1 = GetRandom(seed0, seed1) - .5f;
@@ -1078,19 +1216,19 @@ __global
 __constant
 #endif
  const Shape *shapes,
- const unsigned int shapeCnt,
- const unsigned int lightCnt, 
+ const short shapeCnt,
+ const short lightCnt, 
 #if (ACCELSTR == 1)
  __constant BVHNodeGPU *btn, 
  __constant BVHNodeGPU *btl, 
 #elif (ACCELSTR == 2)
  __constant KDNodeGPU *kng, 
- int kngCnt, 
+ short kngCnt, 
  __constant int *kn, 
- int knCnt, 
+ short knCnt, 
 #endif
- const int width, const int height,
- const int currentSample,
+ const short width, const short height,
+ const short currentSample,
  __global int *pixels
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
@@ -1099,8 +1237,8 @@ __constant
  ) {
     const int gid = get_global_id(0);
  const int gid2 = gid << 1;
- const int x = gid % width;
- const int y = gid / width;
+ const short x = gid % width;
+ const short y = gid / width;
 
  if (y >= height)
   return;
@@ -1158,21 +1296,21 @@ __global
 __constant
 #endif
  const Shape *shapes,
- const unsigned int shapeCnt,
- const unsigned int lightCnt,
+ const short shapeCnt,
+ const short lightCnt,
 #if (ACCELSTR == 1)
  __constant BVHNodeGPU *btn, 
  __constant BVHNodeGPU *btl, 
 #elif (ACCELSTR == 2)
  __constant KDNodeGPU *kng,
- int kngCnt, 
+ short kngCnt, 
  __constant int *kn, 
- int knCnt, 
+ short knCnt, 
 #endif
- const int x, const int y,
- const int bwidth, const int bheight,
- const int twidth, const int theight,
- const int currentSample,
+ const short x, const short y,
+ const short bwidth, const short bheight,
+ const short twidth, const short theight,
+ const short currentSample,
  __global int *pixels
 #ifdef DEBUG_INTERSECTIONS
  , __global int *debug1,
@@ -1181,8 +1319,8 @@ __constant
  ) {
     const int gid = get_global_id(0);
 	
- const int xwithinbox = gid % bwidth;
- const int ywithinbox = gid / bwidth;
+ const short xwithinbox = gid % bwidth;
+ const short ywithinbox = gid / bwidth;
  
  const int sgid = (y + ywithinbox) * twidth + (x + xwithinbox);
  const int sgid2 = sgid << 1;
