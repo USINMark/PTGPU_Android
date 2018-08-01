@@ -971,6 +971,55 @@ unsigned int *DrawFrame() {
 			ExecuteKernel(kernelRadiance, rayCnt);
 			//clFinish(commandQueue);
 			kernelTotalTime += (WallClockTime() - kernelStartTime);
+#if 0
+            //clErrchk(clEnqueueReadBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) *  rayCnt, ray, 0, NULL, NULL));
+            //clErrchk(clEnqueueReadBuffer(commandQueue, seedBuffer, CL_TRUE, 0, sizeof(unsigned int) *  rayCnt * 2, seeds, 0, NULL, NULL));
+            //clErrchk(clEnqueueReadBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) *  rayCnt, throughput, 0, NULL, NULL));
+            //clErrchk(clEnqueueReadBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(char) *  rayCnt, specularBounce, 0, NULL, NULL));
+            clErrchk(clEnqueueReadBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(char) *  rayCnt, terminated, 0, NULL, NULL));
+            //clErrchk(clEnqueueReadBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) *  width * height, result, 0, NULL, NULL));
+
+            int rc = 0, lastSwapped = rayCnt - 1;
+
+            for(int k = 0; k < rayCnt; k++) {
+                if (terminated[k] == 1)
+                {
+                    for(int l = lastSwapped; l > k; l--)
+                    {
+                        if (terminated[l] == 0) {
+                            Ray tRay = ray[k]; ray[k] = ray[l]; ray[l] = tRay;
+
+                            unsigned int tSeeds1 = seeds[2 * k]; seeds[2 * k] = seeds[2 * l]; seeds[2 * l] = tSeeds1;
+                            unsigned int tSeeds2 = seeds[2 * k + 1]; seeds[2 * k + 1] = seeds[2 * l + 1]; seeds[2 * l + 1] = tSeeds2;
+
+                            Vec tThroughput = throughput[k]; throughput[k] = throughput[l]; throughput[l] = tThroughput;
+                            char tSB = specularBounce[k]; specularBounce[k] = specularBounce[l]; specularBounce[l] = tSB;
+                            char tT = terminated[k]; terminated[k] = terminated[l]; terminated[l] = tT;
+                            //result[k] = result[l];
+
+                            lastSwapped = l - 1;
+                            break;
+                        }
+                    }
+                    rc++;
+                }
+            }
+
+            //rayCnt = rc;
+            if (rc == rayCnt)
+            {
+                LOGI("Loop finished\n");
+                break;
+            }
+			//LOGI("Ray Count: %d", rc);
+
+            //clErrchk(clEnqueueWriteBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) *  rayCnt, ray, 0, NULL, NULL));
+            //clErrchk(clEnqueueWriteBuffer(commandQueue, seedBuffer, CL_TRUE, 0, sizeof(unsigned int) *  rayCnt * 2, seeds, 0, NULL, NULL));
+            //clErrchk(clEnqueueWriteBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) *  rayCnt, throughput, 0, NULL, NULL));
+            //clErrchk(clEnqueueWriteBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(char) *  rayCnt, specularBounce, 0, NULL, NULL));
+            //clErrchk(clEnqueueWriteBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(char) *  rayCnt, terminated, 0, NULL, NULL));
+            //clErrchk(clEnqueueWriteBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) *  width * height, result, 0, NULL, NULL));
+#endif
         }
 
 		index = 0;
@@ -1144,6 +1193,7 @@ void ReInit(const int reallocBuffers) {
 #endif
 
     currentSample = 0;
+#ifdef EXP_KERNEL
     int index = 0;
 
     /* Set kernel arguments */
@@ -1167,6 +1217,7 @@ void ReInit(const int reallocBuffers) {
     clErrchk(clEnqueueReadBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(char) *  width * height, specularBounce, 0, NULL, NULL));
     clErrchk(clEnqueueReadBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(char) *  width * height, terminated, 0, NULL, NULL));
     clErrchk(clEnqueueReadBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) *  width * height, result, 0, NULL, NULL));
+#endif
 }
 
 #ifdef WIN32

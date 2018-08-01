@@ -406,9 +406,8 @@ __constant
         float d = 0.0f;
         if (shapes[i].type == SPHERE ) d = SphereIntersect(&shapes[i].s, r);
         if (shapes[i].type == TRIANGLE ) d = TriangleIntersect(&shapes[i].t, r);
-        if ((d != 0.f) && (d < maxt)) {
-            return 1;
-        }
+        if ((d != 0.f) && (d < maxt)) 
+            return 1;        
     }
 
     return 0;
@@ -917,13 +916,13 @@ __constant
  , __global int *debug1,
  __global float *debug2
 #endif
- ) { 
+ ) {
  const int gid = get_global_id(0);
- 	
- const int x = gid % width;
- const int y = gid / width;
- 
- const int sgid2 = gid << 1; 
+
+ const int x = results[gid].x;//gid % width; //
+ const int y = results[gid].y;//gid / width; //
+
+ const int sgid2 = gid << 1;
   
  if (terminated[gid] != 1)
  {
