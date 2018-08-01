@@ -620,7 +620,162 @@ void SetUpOpenCL() {
 	}
 }
 
+#ifdef EXP_KERNEL
+void ExecuteKernel(cl_kernel p_kernel, int cnt_kernel) {
+    /* Enqueue a kernel run call */
+    size_t globalThreads[1];
+
+    globalThreads[0] = cnt_kernel;
+
+    if (globalThreads[0] % workGroupSize != 0) globalThreads[0] = (globalThreads[0] / workGroupSize + 1) * workGroupSize;
+
+    size_t localThreads[1];
+
+    localThreads[0] = workGroupSize;
+
+    clErrchk(clEnqueueNDRangeKernel(commandQueue, p_kernel, 1, NULL, globalThreads, localThreads, 0, NULL, NULL));
+}
+#else
+void ExecuteKernel() {
+	/* Enqueue a kernel run call */
+	size_t globalThreads[1];
+
+	globalThreads[0] = width * height;
+
+	if (globalThreads[0] % workGroupSize != 0) globalThreads[0] = (globalThreads[0] / workGroupSize + 1) * workGroupSize;
+
+	size_t localThreads[1];
+
+	localThreads[0] = workGroupSize;
+
+	clErrchk(clEnqueueNDRangeKernel(commandQueue, kernel, 1, NULL, globalThreads, localThreads, 0, NULL, NULL));
+}
+#endif
+
 #ifdef CPU_PARTRENDERING
+#ifdef EXP_KERNEL
+Vec *colors_box;
+unsigned int *pixels_box;
+
+void DrawBoxCPU(int xstart, int ystart, int bwidth, int bheight, int twidth, int theight, double &cpuTotalTime, double &rwTotalTime, Vec **ppColors_box, unsigned int **ppPixels_box) {
+    const float invWidth = 1.f / twidth;
+    const float invHeight = 1.f / theight;
+
+    double cpuStartTime = WallClockTime();
+
+#pragma omp parallel for
+    for (int y = ystart; y < ystart + bheight; y++) { /* Loop over image rows */
+        for (int x = xstart; x < xstart + bwidth; x++) { /* Loop cols */
+            const int i = (theight - y - 1) * twidth + x;
+            const int i2 = i << 1;
+
+            const float r1 = GetRandom(&seeds[i2], &seeds[i2 + 1]) - .5f;
+            const float r2 = GetRandom(&seeds[i2], &seeds[i2 + 1]) - .5f;
+            const float kcx = (x + r1) * invWidth - .5f;
+            const float kcy = (y + r2) * invHeight - .5f;
+
+            Vec rdir;
+            vinit(rdir,
+                  camera.x.s[0] * kcx + camera.y.s[0] * kcy + camera.dir.s[0],
+                  camera.x.s[1] * kcx + camera.y.s[1] * kcy + camera.dir.s[1],
+                  camera.x.s[2] * kcx + camera.y.s[2] * kcy + camera.dir.s[2]);
+
+            Vec rorig;
+            vsmul(rorig, 0.1f, rdir);
+            vadd(rorig, rorig, camera.orig)
+
+            vnorm(rdir);
+            const Ray ray = { rorig, rdir };
+
+            Vec r;
+            r.s[0] = r.s[1] = r.s[2] = 1.0f;
+
+            RadiancePathTracing(shapes, shapeCnt, lightCnt,
+#if (ACCELSTR == 1)
+                    btn, btl,
+#elif (ACCELSTR == 2)
+                    pkngbuf, kngCnt, pknbuf, knCnt,
+#endif
+                    &ray, &seeds[i2], &seeds[i2 + 1], &r);
+
+            if (currentSample == 0)
+                *ppColors_box[i] = r;
+            else {
+                const float k1 = currentSample;
+                const float k2 = 1.f / (k1 + 1.f);
+                (*ppColors_box[i]).s[0] = ((*ppColors_box[i]).s[0] * k1 + r.s[0]) * k2;
+                (*ppColors_box[i]).s[1] = ((*ppColors_box[i]).s[1] * k1 + r.s[1]) * k2;
+                (*ppColors_box[i]).s[2] = ((*ppColors_box[i]).s[2] * k1 + r.s[2]) * k2;
+            }
+
+            *ppPixels_box[y * twidth + x] = toInt((*ppColors_box[i]).s[0]) |
+                                     (toInt((*ppColors_box[i]).s[1]) << 8) |
+                                     (toInt((*ppColors_box[i]).s[2]) << 16);
+        }
+    }
+    cpuTotalTime += (WallClockTime() - cpuStartTime);
+}
+
+void DrawBoxExpKernel(int xstart, int ystart, int bwidth, int bheight, int twidth, int theight, double &setTotalTime, double &kernelTotalTime, double &rwTotalTime, Vec **colors_box, unsigned int **pixels_box) {
+
+}
+
+unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool bFirst) {
+	int startSampleCount = currentSample, nGPU = 0, nCPU = 1, index = 0;
+	bool cpuTurn = false;
+	double startTime = WallClockTime(), setStartTime, kernelStartTime;
+	double setTotalTime = 0.0, kernelTotalTime = 0.0, rwTotalTime = 0.0;
+	double cpuTotalTime = 0.0;
+
+	cl_int status;
+
+    colors_box = (Vec *) malloc(sizeof(Vec) * bwidth * bheight);
+    pixels_box = (unsigned int *) malloc(sizeof(unsigned int) * bwidth * bheight);
+
+	for (int y = 0; y < height; y += bheight) {
+		for (int x = 0; x < width; x += bwidth) {
+			if (cpuTurn) {
+				DrawBoxCPU(x, y, bwidth, bheight, width, height, cpuTotalTime, rwTotalTime, &colors_box, &pixels_box);
+
+				nCPU++;
+
+				if ((float)nGPU / nCPU >= *rCPU) cpuTurn = true;
+				else cpuTurn = false;
+			}
+			else
+			{
+				DrawBoxExpKernel(x, y, bwidth, bheight, width, height, setTotalTime, kernelTotalTime, rwTotalTime, &colors_box, &pixels_box);
+
+				nGPU++;
+
+				if ((float)nGPU / nCPU >= *rCPU) cpuTurn = true;
+				else cpuTurn = false;
+			}
+		}
+	}
+
+	double rwStartTime = WallClockTime();
+	clErrchk(clEnqueueReadBuffer(commandQueue, pixelBuffer, CL_TRUE, 0, sizeof(unsigned int) * width * height, pixels, 0, NULL, NULL));
+	rwTotalTime += (WallClockTime() - rwStartTime);
+
+	if (bFirst) *rCPU = (cpuTotalTime / (nCPU - 1)) / ((setTotalTime + kernelTotalTime + rwTotalTime) / nGPU);
+
+	currentSample++;
+
+	/*------------------------------------------------------------------------*/
+	const double elapsedTime = WallClockTime() - startTime;
+	const int samples = currentSample - startSampleCount;
+	const double sampleSec = samples * height * width / elapsedTime;
+
+    free(pixels_box);
+    free(colors_box);
+
+	LOGI("Set time %.5f msec, Kernel time %.5f msec, CPU time %.5f msec, RW time %.5f msec, Total time %.5f msec (pass %d)  Sample/sec  %.1fK\n",
+		 setTotalTime, kernelTotalTime, cpuTotalTime, rwTotalTime, elapsedTime, currentSample, sampleSec / 1000.f);
+
+	return pixels;
+}
+#else
 void ExecuteBoxKernel(int x, int y, int bwidth, int bheight) {
 	/* Enqueue a kernel run call */
 	size_t globalThreads[1];
@@ -645,7 +800,7 @@ void DrawBox(int xstart, int ystart, int bwidth, int bheight, int twidth, int th
 
 	clErrchk(clEnqueueReadBuffer(commandQueue, colorBuffer, CL_TRUE, 0, sizeof(Vec) * twidth * theight, colors, 0, NULL, NULL));
 	clErrchk(clEnqueueReadBuffer(commandQueue, pixelBuffer, CL_TRUE, 0, sizeof(unsigned int) * twidth * theight, pixels, 0, NULL, NULL));
-	
+
 	rwTotalTime += (WallClockTime() - rwStartTime);
 
 	double cpuStartTime = WallClockTime();
@@ -677,7 +832,7 @@ void DrawBox(int xstart, int ystart, int bwidth, int bheight, int twidth, int th
 			Vec r;
 			r.s[0] = r.s[1] = r.s[2] = 1.0f;
 
-			RadiancePathTracing(shapes, shapeCnt, lightCnt, 
+			RadiancePathTracing(shapes, shapeCnt, lightCnt,
 #if (ACCELSTR == 1)
 				btn, btl,
 #elif (ACCELSTR == 2)
@@ -706,7 +861,7 @@ void DrawBox(int xstart, int ystart, int bwidth, int bheight, int twidth, int th
 
 	clErrchk(clEnqueueWriteBuffer(commandQueue, pixelBuffer, CL_TRUE, 0, sizeof(unsigned int) * twidth * theight, pixels, 0, NULL, NULL));
 	clErrchk(clEnqueueWriteBuffer(commandQueue, colorBuffer, CL_TRUE, 0, sizeof(Vec) * twidth * theight, colors, 0, NULL, NULL));
-	
+
 	rwTotalTime += (WallClockTime() - rwStartTime);
 }
 
@@ -831,7 +986,7 @@ unsigned int *DrawAllBoxes(int bwidth, int bheight, float *rCPU, bool bFirst) {
 
 				clErrchk(clReleaseMemObject(debugBuffer1));
 				free(debug1);
-#endif				
+#endif
 				nGPU++;
 
 				if ((float)nGPU / nCPU >= *rCPU) cpuTurn = true;
@@ -858,50 +1013,23 @@ unsigned int *DrawAllBoxes(int bwidth, int bheight, float *rCPU, bool bFirst) {
 
 	return pixels;
 }
-
+#endif
 unsigned int *DrawFrame()
 {
     static float rCPU = 1.0f;
     static bool first = true;
 
+#ifdef EXP_KERNEL
+    unsigned int *pPixels = DrawAllBoxesExpKernel(160, 120, &rCPU, first);
+#else
     unsigned int *pPixels = DrawAllBoxes(160, 120, &rCPU, first);
+#endif
+    LOGI("The ratio of CPU is %f\n", rCPU);
     first = false;
 
     return pPixels;
 }
-#else
-#ifdef EXP_KERNEL
-void ExecuteKernel(cl_kernel p_kernel, int cnt_kernel) {
-	/* Enqueue a kernel run call */
-	size_t globalThreads[1];
-
-	globalThreads[0] = cnt_kernel;
-
-	if (globalThreads[0] % workGroupSize != 0) globalThreads[0] = (globalThreads[0] / workGroupSize + 1) * workGroupSize;
-
-	size_t localThreads[1];
-
-	localThreads[0] = workGroupSize;
-
-	clErrchk(clEnqueueNDRangeKernel(commandQueue, p_kernel, 1, NULL, globalThreads, localThreads, 0, NULL, NULL));
-}
-#else
-void ExecuteKernel() {
-	/* Enqueue a kernel run call */
-	size_t globalThreads[1];
-
-	globalThreads[0] = width * height;
-
-	if (globalThreads[0] % workGroupSize != 0) globalThreads[0] = (globalThreads[0] / workGroupSize + 1) * workGroupSize;
-
-	size_t localThreads[1];
-
-	localThreads[0] = workGroupSize;
-	
-	clErrchk(clEnqueueNDRangeKernel(commandQueue, kernel, 1, NULL, globalThreads, localThreads, 0, NULL, NULL));
-}
-#endif
-
+#else //NOT CPU_PARTRENDERING
 unsigned int *DrawFrame() {
 	int len = pixelCount * sizeof(unsigned int), index = 0;
 	double startTime = WallClockTime(), setStartTime, kernelStartTime, readStartTime;
@@ -1245,6 +1373,7 @@ void displayFunc(void) {
 	first = false;
 #else
 	DrawFrame();
+
 #endif
 	glDrawPixels(width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);	
 	glutSwapBuffers();

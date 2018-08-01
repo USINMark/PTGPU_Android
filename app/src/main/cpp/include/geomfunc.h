@@ -187,7 +187,7 @@ int Intersect(
 __constant
 #endif
 	const Shape *shapes,
-	const unsigned int shapeCnt,
+	const short shapeCnt,
 #if (ACCELSTR == 1)
 #ifdef GPU_KERNEL
 	__constant
@@ -201,11 +201,13 @@ __constant
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	KDNodeGPU *kng, int kngCnt,
+	KDNodeGPU *kng, 
+	short kngCnt,
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	int *kn, int knCnt,
+	int *kn, 
+	short knCnt,
 #endif
 #ifdef GPU_KERNEL
 	__constant
@@ -216,7 +218,7 @@ __constant
 #if (ACCELSTR == 0)
 	float inf = (*t) = 1e20f;
 
-	unsigned int i = shapeCnt;
+	short i = shapeCnt;
 	for (; i--;) {
 		float d = 0.0f;
 		if (shapes[i].type == SPHERE ) d = SphereIntersect(&shapes[i].s, r);
@@ -349,19 +351,129 @@ int IntersectP(
 __constant
 #endif
 	const Shape *shapes,
-	const unsigned int shapeCnt,
+	const short shapeCnt,
+#if (ACCELSTR == 1)
+#ifdef GPU_KERNEL
+__constant
+#endif
+ BVHNodeGPU *btn,
+__constant
+
+ BVHNodeGPU *btl,
+#elif (ACCELSTR == 2)
+#ifdef GPU_KERNEL
+__constant
+#endif
+ KDNodeGPU *kng,
+ short kngCnt,
+#ifdef GPU_KERNEL
+__constant
+#endif
+ int *kn,
+ short knCnt,
+#endif
 	const Ray *r,
 	const float maxt) {
-	unsigned int i = shapeCnt - 1;
-	for (; i--;) {
-		float d = 0.0f;
-		if (shapes[i].type == SPHERE ) d = SphereIntersect(&shapes[i].s, r);
-		if (shapes[i].type == TRIANGLE) d = TriangleIntersect(&shapes[i].t, r);
-		if ((d != 0.f) && (d < maxt))
-			return 1;
+#if (ACCELSTR == 0)
+    short i = shapeCnt;
+
+    for (; i--;) {
+        float d = 0.0f;
+        if (shapes[i].type == SPHERE ) d = SphereIntersect(&shapes[i].s, r);
+        if (shapes[i].type == TRIANGLE ) d = TriangleIntersect(&shapes[i].t, r);
+        if ((d != 0.f) && (d < maxt)) 
+            return 1;        
+    }
+
+    return 0;
+#elif (ACCELSTR == 1)
+    // Use static allocation because malloc() can't be called in parallel
+    // Use stack to traverse BVH to save space (cost is O(height))
+    int stack[INTERSECT_STACK_SIZE];
+    int topIndex = INTERSECT_STACK_SIZE;
+    stack[--topIndex] = 0; //btn;
+    int intersected = 0, status = 0;
+
+    // Do while stack is not empty
+    while (topIndex != INTERSECT_STACK_SIZE) {
+        int n = stack[topIndex++];
+
+        if (intersection_bound_test(*r, btn[n].bound)) {
+            if (btn[n].leaf == 0) {
+                stack[--topIndex] = btn[n].nRight;
+                stack[--topIndex] = btn[n].nLeft;
+
+                if (topIndex < 0) {
+                    //printf("Intersect stack not big enough. Increase INTERSECT_STACK_SIZE!\n");
+                    return 0;
+                }
+			}
+			else if (btn[n].leaf == 2) {
+                float d = 0.0f;
+
+			    if (shapes[btl[btn[n].nLeft].nShape].type == SPHERE ) d = SphereIntersect(&shapes[btl[btn[n].nLeft].nShape].s, r);
+				if (shapes[btl[btn[n].nLeft].nShape].type == TRIANGLE ) d = TriangleIntersect(&shapes[btl[btn[n].nLeft].nShape].t, r);
+
+                if (d != 0.0 && d < maxt) {
+                    return 1;
+                }
+
+			    if (shapes[btl[btn[n].nRight].nShape].type == SPHERE ) d = SphereIntersect(&shapes[btl[btn[n].nRight].nShape].s, r);
+				if (shapes[btl[btn[n].nRight].nShape].type == TRIANGLE ) d = TriangleIntersect(&shapes[btl[btn[n].nRight].nShape].t, r);
+
+                if (d != 0.0 && d < maxt) {
+                    return 1;
+                }
+			}
+			else {
+				//printf("Unknown node, %d\n", btn[n].leaf);
+            }
+        }
+    }
+
+    return 0;
+#elif (ACCELSTR == 2)
+	// Use static allocation because malloc() can't be called in parallel
+	// Use stack to traverse BVH to save space (cost is O(height))
+	int stack[INTERSECT_STACK_SIZE];
+	int topIndex = INTERSECT_STACK_SIZE;
+	stack[--topIndex] = 1; //tn;
+	int intersected = 0, status = 0;
+
+	// Do while stack is not empty
+	while (topIndex != INTERSECT_STACK_SIZE) {
+		int n = stack[topIndex++];
+
+		if (intersection_bound_test(*r, kng[n].bound)) {
+			if (kng[n].leaf == 0) {
+				stack[--topIndex] = kng[n].nRight;
+				stack[--topIndex] = kng[n].nLeft;
+
+				if (topIndex < 0) {
+					//printf("Intersect stack not big enough. Increase INTERSECT_STACK_SIZE!\n");
+					return 0;
+				}
+			}
+			else if (kng[n].leaf == 1) {
+				float d = 0.0f;
+
+				for (int i = kng[n].min; i < kng[n].max; i++) {
+					if (shapes[kn[i]].type == SPHERE) d = SphereIntersect(&shapes[kn[i]].s, r);
+					if (shapes[kn[i]].type == TRIANGLE) d = TriangleIntersect(&shapes[kn[i]].t, r);
+
+					if (d != 0.0 && d < maxt) {
+                        return 1;
+                    }
+				}
+			}
+			else {
+				//printf("Unknown node, %d\n", btn[n].leaf);
+			}
+		}
 	}
 
 	return 0;
+#endif
 }
 
 void SampleLights(
@@ -369,8 +481,27 @@ void SampleLights(
 __constant
 #endif
 	const Shape *shapes,
-	const unsigned int shapeCnt,
-	const unsigned int lightCnt, 
+	const short shapeCnt,
+	const short lightCnt, 
+#if (ACCELSTR == 1)
+__constant
+
+ BVHNodeGPU *btn,
+__constant
+
+ BVHNodeGPU *btl,
+#elif (ACCELSTR == 2)
+#ifdef GPU_KERNEL
+__constant
+#endif
+ KDNodeGPU *kng,
+ short kngCnt,
+#ifdef GPU_KERNEL
+__constant
+#endif
+ int *kn,
+ short knCnt,
+#endif
 	unsigned int *seed0, unsigned int *seed1,
 	const Vec *hitPoint,
 	const Vec *normal,
@@ -378,8 +509,8 @@ __constant
 	vclr(*result);
 
 	/* For each light */
-	unsigned int i;
-	unsigned int lightsVisited;
+	short i;
+	short lightsVisited;
 	for (i = 0, lightsVisited = 0; i < shapeCnt && lightsVisited < lightCnt; i++) {
 #ifdef GPU_KERNEL
 __constant
@@ -446,7 +577,13 @@ __constant
 			
 			/* Check if the light is visible */
 			const float wi = vdot(shadowRay.d, *normal);
-			if ((wi > 0.f) && (!IntersectP(shapes, shapeCnt, &shadowRay, len - EPSILON))) {
+			if ((wi > 0.f) && (!IntersectP(shapes, shapeCnt, 
+#if (ACCELSTR == 1)
+        		btn, btl,
+#elif (ACCELSTR == 2)
+        		kng, kngCnt, kn, knCnt,
+#endif
+        		&shadowRay, len - EPSILON))) {
 				Vec c; vassign(c, light->e);
 				const float s = light->area * wi * wo / (len *len);
 				vsmul(c, s, c);
@@ -463,8 +600,8 @@ void RadianceOnePathTracing(
 	__constant
 #endif
 	const Shape *shapes,
-	const unsigned int shapeCnt,
-	const unsigned int lightCnt,
+	const short shapeCnt,
+	const short lightCnt,
 #if (ACCELSTR == 1)
 #ifdef GPU_KERNEL
 	__constant
@@ -478,15 +615,17 @@ void RadianceOnePathTracing(
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	KDNodeGPU *kng, int kngCnt,
+	KDNodeGPU *kng, 
+	short kngCnt,
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	int *kn, int knCnt,
+	int *kn, 
+	short knCnt,
 #endif
 	Ray *currentRay,
 	unsigned int *seed0, unsigned int *seed1, 
-	int depth, Vec *rad, Vec *throughput, int *specularBounce, int *terminated, 
+	Vec *rad, Vec *throughput, char *specularBounce, char *terminated, 
 	Vec *result) {
 	float t; /* distance to intersection */
 	unsigned int id = 0; /* id of intersected object */
@@ -562,7 +701,13 @@ void RadianceOnePathTracing(
 		/* Direct lighting component */
 		Vec Ld;
 
-		SampleLights(shapes, shapeCnt, lightCnt, seed0, seed1, &hitPoint, &nl, &Ld);
+		SampleLights(shapes, shapeCnt, lightCnt, 
+#if (ACCELSTR == 1)
+		    btn, btl,
+#elif (ACCELSTR == 2)
+		    kng, kngCnt, kn, knCnt,
+#endif
+	    	seed0, seed1, &hitPoint, &nl, &Ld);
 		vmul(Ld, *throughput, Ld);
 		vadd(*rad, *rad, Ld);
 
@@ -670,8 +815,8 @@ void RadiancePathTracing(
 	__constant
 #endif
 	const Shape *shapes,
-	const unsigned int shapeCnt,
-	const unsigned int lightCnt, 
+	const short shapeCnt,
+	const short lightCnt, 
 #if (ACCELSTR == 1)
 #ifdef GPU_KERNEL
 	__constant
@@ -685,11 +830,13 @@ void RadiancePathTracing(
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	KDNodeGPU *kng, int kngCnt,
+	KDNodeGPU *kng, 
+	short kngCnt,
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	int *kn, int knCnt,
+	int *kn, 
+	short knCnt,
 #endif
 	const Ray *startRay,
 	unsigned int *seed0, unsigned int *seed1,
@@ -699,8 +846,8 @@ void RadiancePathTracing(
 	Vec throughput; vinit(throughput, 1.f, 1.f, 1.f);
 
 	unsigned int depth = 0;
-	int specularBounce = 1;
-	int terminated = 0;
+	char specularBounce = 1;
+	char terminated = 0;
 
 	for (;; ++depth) {
 		if (depth > MAX_DEPTH) {
@@ -714,7 +861,7 @@ void RadiancePathTracing(
 #elif (ACCELSTR == 2)
 			kng, kngCnt, kn, knCnt,
 #endif
-			&currentRay, seed0, seed1, depth, &rad, &throughput, &specularBounce, &terminated, result);
+			&currentRay, seed0, seed1, &rad, &throughput, &specularBounce, &terminated, result);
 
 		if (terminated == 1) {
 			*result = rad;
@@ -728,8 +875,8 @@ void RadianceDirectLighting(
 	__constant
 #endif
 	const Shape *shapes,
-	const unsigned int shapeCnt,
-	const unsigned int lightCnt, 
+	const short shapeCnt,
+	const short lightCnt, 
 #if (ACCELSTR == 1)
 #ifdef GPU_KERNEL
 	__constant
@@ -743,11 +890,13 @@ void RadianceDirectLighting(
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	KDNodeGPU *kng, int kngCnt,
+	KDNodeGPU *kng, 
+	short kngCnt,
 #ifdef GPU_KERNEL
 	__constant
 #endif
-	int *kn, int knCnt,
+	int *kn, 
+	short knCnt,
 #endif
 #ifdef GPU_KERNEL
 	__constant
@@ -760,7 +909,7 @@ void RadianceDirectLighting(
 	Vec throughput; vinit(throughput, 1.f, 1.f, 1.f);
 
 	unsigned int depth = 0;
-	int specularBounce = 1;
+	char specularBounce = 1;
 	for (;; ++depth) {
 		// Removed Russian Roulette in order to improve execution on SIMT
 		if (depth > MAX_DEPTH) {
@@ -834,7 +983,13 @@ OCL_CONSTANT_BUFFER
 			/* Direct lighting component */
 
 			Vec Ld;
-			SampleLights(shapes, shapeCnt, lightCnt, seed0, seed1, &hitPoint, &nl, &Ld);
+			SampleLights(shapes, shapeCnt, lightCnt, 
+			#if (ACCELSTR == 1)
+    			btn, btl,
+#elif (ACCELSTR == 2)
+    			kng, kngCnt, kn, knCnt,
+#endif
+    			seed0, seed1, &hitPoint, &nl, &Ld);
 			vmul(Ld, throughput, Ld);
 			vadd(rad, rad, Ld);
 
