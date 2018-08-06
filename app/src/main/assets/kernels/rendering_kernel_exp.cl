@@ -1206,7 +1206,7 @@ __kernel void GenerateCameraRay_exp(
  Vec rorig;
  vsmul(rorig, 0.1f, rdir);
  //{ float k = (0.1f); { (rorig).x = k * (rdir).x; (rorig).y = k * (rdir).y; (rorig).z = k * (rdir).z; } };
- vadd(rorig, rorig, camera->orig)
+ vadd(rorig, rorig, camera->orig);
  //{ (rorig).x = (rorig).x + (camera->orig).x; (rorig).y = (rorig).y + (camera->orig).y; (rorig).z = (rorig).z + (camera->orig).z; }
 
  vnorm(rdir);
@@ -1250,3 +1250,149 @@ __kernel void FillPixel_exp(
    (toInt(colors[sgid].z) << 16) | 0xff000000;
 #endif   
 }
+
+#ifdef CPU_PARTRENDERING
+__kernel void RadiancePathTracing_expbox(
+#ifdef __ANDROID__
+        __global
+#else
+        __constant
+#endif
+        const Shape *shapes,
+        const short shapeCnt,
+        const short lightCnt,
+        const short startx, const short starty,
+        const short bwidth, const short bheight,
+        const short twidth, const short theight,
+#if (ACCELSTR == 1)
+        __constant
+
+         BVHNodeGPU *btn,
+        __constant
+
+         BVHNodeGPU *btl,
+#elif (ACCELSTR == 2)
+        __constant
+
+         KDNodeGPU *kng,
+         short kngCnt,
+        __constant
+
+         int *kn,
+         short knCnt,
+#endif
+        __global Ray *rays, __global unsigned int *seedsInput, __global Vec *throughput, __global char *specularBounce, __global char *terminated, __global Result *results
+#ifdef DEBUG_INTERSECTIONS
+        , __global int *debug1,
+         __global float *debug2
+#endif
+) {
+    const int gid = get_global_id(0);
+
+    const int x = results[gid].x;//gid % width; //
+    const int y = results[gid].y;//gid / width; //
+
+    const int sgid2 = ((y - 1) * twidth + x) << 1;
+
+    if (terminated[gid] != 1)
+    {
+        Ray aray = rays[gid];
+
+        RadianceOnePathTracing(shapes, shapeCnt, lightCnt,
+#if (ACCELSTR == 1)
+            btn, btl,
+#elif (ACCELSTR == 2)
+            kng, kngCnt, kn, knCnt,
+#endif
+            &aray, &seedsInput[sgid2], &seedsInput[sgid2+1], &throughput[gid], &specularBounce[gid], &terminated[gid], &results[gid].p
+#ifdef DEBUG_INTERSECTIONS
+        , debug1, debug2
+#endif
+        );
+
+        rays[gid] = aray;
+    }
+}
+
+__kernel void GenerateCameraRay_expbox(
+    __constant Camera *camera,
+    __global unsigned int *seedsInput,
+    const short startx, const short starty,
+    const short width, const short height,
+    __global Ray *rays, __global Vec *throughput, __global char *specularBounce, __global char *terminated, __global Result *results) {
+    const int gid = get_global_id(0);
+
+    const int x = (gid % width) + startx;
+    const int y = (gid / width) + starty;
+
+    const int sgid = y * width + x;
+    const int sgid2 = sgid << 1;
+
+    const float invWidth = 1.f / width;
+    const float invHeight = 1.f / height;
+
+    const float r1 = GetRandom(&seedsInput[sgid2], &seedsInput[sgid2 + 1]) - .5f;
+    const float r2 = GetRandom(&seedsInput[sgid2], &seedsInput[sgid2 + 1]) - .5f;
+    const float kcx = (x + r1) * invWidth - .5f;
+    const float kcy = (y + r2) * invHeight - .5f;
+
+    throughput[gid].x = throughput[gid].y = throughput[gid].z = 1.f;
+    specularBounce[gid] = 1;
+    terminated[gid] = 0;
+    results[gid].x = x, results[gid].y = y, results[gid].p.x = results[gid].p.y = results[gid].p.z = 0.f;
+
+    Vec rdir;
+    vinit(rdir,
+            camera->x.x * kcx + camera->y.x * kcy + camera->dir.x,
+            camera->x.y * kcx + camera->y.y * kcy + camera->dir.y,
+            camera->x.z * kcx + camera->y.z * kcy + camera->dir.z);
+    //{ (rdir).x = camera->x.x * kcx + camera->y.x * kcy + camera->dir.x; (rdir).y = camera->x.y * kcx + camera->y.y * kcy + camera->dir.y; (rdir).z = camera->x.z * kcx + camera->y.z * kcy + camera->dir.z; };
+
+    Vec rorig;
+    vsmul(rorig, 0.1f, rdir);
+    //{ float k = (0.1f); { (rorig).x = k * (rdir).x; (rorig).y = k * (rdir).y; (rorig).z = k * (rdir).z; } };
+    vadd(rorig, rorig, camera->orig);
+    //{ (rorig).x = (rorig).x + (camera->orig).x; (rorig).y = (rorig).y + (camera->orig).y; (rorig).z = (rorig).z + (camera->orig).z; }
+
+    vnorm(rdir);
+    //{ float l = 1.f / sqrt(((rdir).x * (rdir).x + (rdir).y * (rdir).y + (rdir).z * (rdir).z)); { float k = (l); { (rdir).x = k * (rdir).x; (rdir).y = k * (rdir).y; (rdir).z = k * (rdir).z; } }; };
+    rinit(rays[gid], rorig, rdir);
+    //{ { ((*ray).o).x = (rorig).x; ((*ray).o).y = (rorig).y; ((*ray).o).z = (rorig).z; }; { ((*ray).d).x = (rdir).x; ((*ray).d).y = (rdir).y; ((*ray).d).z = (rdir).z; }; };
+}
+
+__kernel void FillPixel_expbox(
+        const short width, const short height, const short currentSample,
+        __global Vec *colors, __global Result *results, __global int *pixels) {
+    const int gid = get_global_id(0);
+
+    const int x = gid % width;
+    const int y = gid / width;
+
+    const int sgid = y * width + x;
+    const int sgid2 = sgid << 1;
+
+    if (y >= height)
+        return;
+
+    if (currentSample == 0) {
+        vassign(colors[sgid], results[sgid].p);
+        //{ (colors[sgid]).x = (r).x; (colors[sgid]).y = (r).y; (colors[sgid]).z = (r).z; };
+    } else {
+        const float k1 = currentSample;
+        const float k2 = 1.f / (currentSample + 1.f);
+
+        colors[sgid].x = (colors[sgid].x * k1 + results[sgid].p.x) * k2;
+        colors[sgid].y = (colors[sgid].y * k1 + results[sgid].p.y) * k2;
+        colors[sgid].z = (colors[sgid].z * k1 + results[sgid].p.z) * k2;
+    }
+#ifdef __ANDROID__
+    pixels[y * width + x] = (toInt(colors[sgid].x)  << 16) |
+        (toInt(colors[sgid].y) << 8) |
+        (toInt(colors[sgid].z)) | 0xff000000;
+#else
+    pixels[y * width + x] = (toInt(colors[sgid].x)) |
+        (toInt(colors[sgid].y) << 8) |
+        (toInt(colors[sgid].z) << 16) | 0xff000000;
+#endif
+}
+#endif

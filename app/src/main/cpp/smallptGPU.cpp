@@ -74,6 +74,9 @@ char kernelFileName[MAX_FN] = "kernels/rendering_kernel.cl";
 
 #ifdef CPU_PARTRENDERING
 static cl_kernel kernelBox;
+#ifdef EXP_KERNEL
+static cl_kernel kernelGenBox, kernelRadianceBox, kernelFillBox;
+#endif
 #endif
 
 #if (ACCELSTR == 1)
@@ -526,15 +529,21 @@ void SetUpOpenCL() {
 
 	kernelFill = clCreateKernel(program, "FillPixel_exp", &status);
 	clErrchk(status);
+#ifdef CPU_PARTRENDERING
+    kernelGenBox = clCreateKernel(program, "GenerateCameraRay_expbox", &status);
+    clErrchk(status);
+
+    kernelRadianceBox = clCreateKernel(program, "RadiancePathTracing_expbox", &status);
+    clErrchk(status);
+
+    kernelFillBox = clCreateKernel(program, "FillPixel_expbox", &status);
+    clErrchk(status);
+#endif
 #else
 	kernel = clCreateKernel(program, "RadianceGPU", &status);
 	clErrchk(status);
 #endif
 
-#ifdef CPU_PARTRENDERING
-	kernelBox = clCreateKernel(program, "RadianceBoxGPU", &status);
-	clErrchk(status);
-#endif
 #if (ACCELSTR == 1)
 	/* Create the kernel program */
 	const char *sourcesBvh = ReadSources(bvhFileName);
@@ -654,10 +663,15 @@ void ExecuteKernel() {
 
 #ifdef CPU_PARTRENDERING
 #ifdef EXP_KERNEL
-Vec *colors_box;
-unsigned int *pixels_box;
+char **specularBounce_boxes, **terminated_boxes;
+unsigned int **pixels_boxes, **seeds_boxes;
+Vec **colors_boxes, **throughputs_boxes;
+Ray **rays_boxes;
+Result **results_boxes;
 
-void DrawBoxCPU(int xstart, int ystart, int bwidth, int bheight, int twidth, int theight, double &cpuTotalTime, double &rwTotalTime, Vec **ppColors_box, unsigned int **ppPixels_box) {
+cl_mem *colorboxBuffer, *pixelboxBuffer, *rayboxBuffer, *seedsboxBuffer, *throughputboxBuffer,  *specularBounceboxBuffer, *terminatedboxBuffer, *resultboxBuffer;
+
+void DrawBoxCPU(short xstart, short ystart, short bwidth, short bheight, short twidth, short theight, double &cpuTotalTime, double &rwTotalTime, short kindex) {
     const float invWidth = 1.f / twidth;
     const float invHeight = 1.f / theight;
 
@@ -667,6 +681,7 @@ void DrawBoxCPU(int xstart, int ystart, int bwidth, int bheight, int twidth, int
     for (int y = ystart; y < ystart + bheight; y++) { /* Loop over image rows */
         for (int x = xstart; x < xstart + bwidth; x++) { /* Loop cols */
             const int i = (theight - y - 1) * twidth + x;
+            const int iBox = (bheight - (y - ystart) - 1) * bwidth + (x - xstart);
             const int i2 = i << 1;
 
             const float r1 = GetRandom(&seeds[i2], &seeds[i2 + 1]) - .5f;
@@ -699,25 +714,99 @@ void DrawBoxCPU(int xstart, int ystart, int bwidth, int bheight, int twidth, int
                     &ray, &seeds[i2], &seeds[i2 + 1], &r);
 
             if (currentSample == 0)
-                *ppColors_box[i] = r;
+                colors_boxes[kindex][iBox] = r;
             else {
                 const float k1 = currentSample;
                 const float k2 = 1.f / (k1 + 1.f);
-                (*ppColors_box[i]).s[0] = ((*ppColors_box[i]).s[0] * k1 + r.s[0]) * k2;
-                (*ppColors_box[i]).s[1] = ((*ppColors_box[i]).s[1] * k1 + r.s[1]) * k2;
-                (*ppColors_box[i]).s[2] = ((*ppColors_box[i]).s[2] * k1 + r.s[2]) * k2;
+                (colors_boxes[kindex][iBox]).s[0] = ((colors_boxes[kindex][iBox]).s[0] * k1 + r.s[0]) * k2;
+                (colors_boxes[kindex][iBox]).s[1] = ((colors_boxes[kindex][iBox]).s[1] * k1 + r.s[1]) * k2;
+                (colors_boxes[kindex][iBox]).s[2] = ((colors_boxes[kindex][iBox]).s[2] * k1 + r.s[2]) * k2;
             }
 
-            *ppPixels_box[y * twidth + x] = toInt((*ppColors_box[i]).s[0]) |
-                                     (toInt((*ppColors_box[i]).s[1]) << 8) |
-                                     (toInt((*ppColors_box[i]).s[2]) << 16);
+            pixels_boxes[kindex][iBox] = toInt((colors_boxes[kindex][iBox]).s[0]) |
+                                     (toInt((colors_boxes[kindex][iBox]).s[1]) << 8) |
+                                     (toInt((colors_boxes[kindex][iBox]).s[2]) << 16);
         }
     }
     cpuTotalTime += (WallClockTime() - cpuStartTime);
 }
 
-void DrawBoxExpKernel(int xstart, int ystart, int bwidth, int bheight, int twidth, int theight, double &setTotalTime, double &kernelTotalTime, double &rwTotalTime, Vec **colors_box, unsigned int **pixels_box) {
+void DrawBoxExpKernel(short xstart, short ystart, short bwidth, short bheight, short twidth, short theight, double &setTotalTime, double &kernelTotalTime, double &rwTotalTime, short kindex) {
+    int pindex = 0;
+    double setStartTime, kernelStartTime, readStartTime;
+    int startSampleCount = currentSample;
 
+    int rayCnt = bwidth * bheight;
+    pindex = 0;
+
+    /* Set kernel arguments */
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&cameraBuffer));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&seedsboxBuffer[kindex]));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *)&xstart));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *)&ystart));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *)&bwidth));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *)&bheight));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&rayboxBuffer[kindex]));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&throughputboxBuffer[kindex]));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&specularBounceboxBuffer[kindex]));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&terminatedboxBuffer[kindex]));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&resultboxBuffer[kindex]));
+
+    ExecuteKernel(kernelGenBox, bwidth * bheight);
+    clFinish(commandQueue);
+
+    for (int i = 0; i < MAX_DEPTH; i++)
+    {
+        pindex = 0;
+
+        setStartTime = WallClockTime();
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&shapeBuffer));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(short), (void *)&shapeCnt));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(short), (void *)&lightCnt));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(short), (void *)&xstart));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(short), (void *)&ystart));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(short), (void *)&bwidth));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(short), (void *)&bheight));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(short), (void *)&twidth));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(short), (void *)&theight));
+#if (ACCELSTR == 1)
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&btnBuffer));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&btlBuffer));
+#elif (ACCELSTR == 2)
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&kngBuffer));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(short), (void *)&kngCnt));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&knBuffer));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(short), (void *)&knCnt));
+#endif
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&rayboxBuffer[kindex]));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&seedsboxBuffer[kindex]));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&throughputboxBuffer[kindex]));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&specularBounceboxBuffer[kindex]));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&terminatedboxBuffer[kindex]));
+        clErrchk(clSetKernelArg(kernelRadianceBox, pindex++, sizeof(cl_mem), (void *)&resultboxBuffer[kindex]));
+        setTotalTime += (WallClockTime() - setStartTime);
+
+        kernelStartTime = WallClockTime();
+        ExecuteKernel(kernelRadianceBox, rayCnt);
+        //clFinish(commandQueue);
+        kernelTotalTime += (WallClockTime() - kernelStartTime);
+    }
+
+    pindex = 0;
+
+    setStartTime = WallClockTime();
+    clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(short), (void *)&bwidth));
+    clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(short), (void *)&bheight));
+    clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(short), (void *)&currentSample));
+    clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(cl_mem), (void *)&colorboxBuffer[kindex]));
+    clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(cl_mem), (void *)&resultboxBuffer[kindex]));
+    clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(cl_mem), (void *)&pixelboxBuffer[kindex]));
+    setTotalTime += (WallClockTime() - setStartTime);
+
+    kernelStartTime = WallClockTime();
+    ExecuteKernel(kernelFillBox, width * height);
+    //clFinish(commandQueue);
+    kernelTotalTime += (WallClockTime() - kernelStartTime);
 }
 
 unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool bFirst) {
