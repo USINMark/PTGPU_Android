@@ -1504,8 +1504,6 @@ void ReInit(const int reallocBuffers) {
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&seedBuffer));
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(short), (void *)&width));
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(short), (void *)&height));
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(short), (void *)&width));
-    clErrchk(clSetKernelArg(kernelGen, index++, sizeof(short), (void *)&height));
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&rayBuffer));
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&throughputBuffer));
     clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&specularBounceBuffer));
