@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.opengl.GLSurfaceView;
-import android.opengl.GLU;
 import android.opengl.GLUtils;
 import android.os.Environment;
 import android.util.Log;

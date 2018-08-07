@@ -198,7 +198,7 @@ __global
 __constant
 #endif
  const Shape *shapes,
- const unsigned short shapeCnt,
+ const short shapeCnt,
 #if (ACCELSTR == 1)
 __constant
 
@@ -1292,7 +1292,7 @@ __kernel void RadiancePathTracing_expbox(
     const int x = results[gid].x;//gid % width; //
     const int y = results[gid].y;//gid / width; //
 
-    const int sgid2 = ((y - 1) * twidth + x) << 1;
+    const int sgid2 = ((y - starty) * bwidth + (x - startx)) << 1;
 
     if (terminated[gid] != 1)
     {
@@ -1318,18 +1318,19 @@ __kernel void GenerateCameraRay_expbox(
     __constant Camera *camera,
     __global unsigned int *seedsInput,
     const short startx, const short starty,
-    const short width, const short height,
+    const short bwidth, const short bheight,
+    const short twidth, const short theight,
     __global Ray *rays, __global Vec *throughput, __global char *specularBounce, __global char *terminated, __global Result *results) {
     const int gid = get_global_id(0);
 
-    const int x = (gid % width) + startx;
-    const int y = (gid / width) + starty;
+    const int x = (gid % bwidth) + startx;
+    const int y = (gid / bwidth) + starty;
 
-    const int sgid = y * width + x;
+    const int sgid = (y - starty) * bwidth + (x - startx);
     const int sgid2 = sgid << 1;
 
-    const float invWidth = 1.f / width;
-    const float invHeight = 1.f / height;
+    const float invWidth = 1.f / twidth;
+    const float invHeight = 1.f / theight;
 
     const float r1 = GetRandom(&seedsInput[sgid2], &seedsInput[sgid2 + 1]) - .5f;
     const float r2 = GetRandom(&seedsInput[sgid2], &seedsInput[sgid2 + 1]) - .5f;

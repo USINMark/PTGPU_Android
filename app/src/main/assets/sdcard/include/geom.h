@@ -45,6 +45,11 @@ typedef struct {
 } Result;
 #endif
 
+#ifdef CPU_PARTRENDERING
+#define BWIDTH 160
+#define BHEIGHT 120
+#endif
+
 typedef struct {
 	Vec o, d;
 } Ray;

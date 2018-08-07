@@ -76,6 +76,14 @@ char kernelFileName[MAX_FN] = "kernels/rendering_kernel.cl";
 static cl_kernel kernelBox;
 #ifdef EXP_KERNEL
 static cl_kernel kernelGenBox, kernelRadianceBox, kernelFillBox;
+
+char **specularBounce_boxes, **terminated_boxes;
+unsigned int **pixels_boxes, **seeds_boxes;
+Vec **colors_boxes, **throughputs_boxes;
+Ray **rays_boxes;
+Result **results_boxes;
+
+cl_mem *colorboxBuffer, *pixelboxBuffer, *rayboxBuffer, *seedsboxBuffer, *throughputboxBuffer,  *specularBounceboxBuffer, *terminatedboxBuffer, *resultboxBuffer;
 #endif
 #endif
 
@@ -139,25 +147,59 @@ inline void clAssert(cl_int code, const char *file, int line)
 void FreeBuffers() {
 #ifdef EXP_KERNEL
 	if (resultBuffer)
-	{
 		clErrchk(clReleaseMemObject(resultBuffer));
-	}
+
 	if (terminatedBuffer)
-	{
 		clErrchk(clReleaseMemObject(terminatedBuffer));
-	}
+
 	if (specularBounceBuffer)
-	{
 		clErrchk(clReleaseMemObject(specularBounceBuffer));
-	}
+
 	if (throughputBuffer)
-	{
 		clErrchk(clReleaseMemObject(throughputBuffer));
-	}
+
 	if (rayBuffer)
-	{
 		clErrchk(clReleaseMemObject(rayBuffer));
-	}
+
+#ifdef CPU_PARTRENDERING
+    int cntBuffers = (width * height) / (BWIDTH * BHEIGHT);
+
+    for(int i = 0; i < cntBuffers; i++)
+    {
+        if (resultboxBuffer[i])
+            clErrchk(clReleaseMemObject(resultboxBuffer[i]));
+
+        if (terminatedboxBuffer[i])
+            clErrchk(clReleaseMemObject(terminatedboxBuffer[i]));
+
+        if (specularBounceboxBuffer[i])
+            clErrchk(clReleaseMemObject(specularBounceboxBuffer[i]));
+
+        if (throughputboxBuffer[i])
+            clErrchk(clReleaseMemObject(throughputboxBuffer[i]));
+
+        if (seedsboxBuffer[i])
+            clErrchk(clReleaseMemObject(seedsboxBuffer[i]));
+
+        if (rayboxBuffer[i])
+            clErrchk(clReleaseMemObject(rayboxBuffer[i]));
+
+        if (pixelboxBuffer[i])
+            clErrchk(clReleaseMemObject(pixelboxBuffer[i]));
+
+        if (colorboxBuffer[i])
+            clErrchk(clReleaseMemObject(colorboxBuffer[i]));
+    }
+
+    if (resultboxBuffer) free(resultboxBuffer);
+    if (terminatedboxBuffer) free(terminatedboxBuffer);
+    if (specularBounceboxBuffer) free(specularBounceboxBuffer);
+    if (throughputboxBuffer) free(throughputboxBuffer);
+    if (seedsboxBuffer) free(seedsboxBuffer);
+    if (rayboxBuffer) free(rayboxBuffer);
+    if (pixelboxBuffer) free(pixelboxBuffer);
+    if (colorboxBuffer) free(colorboxBuffer);
+#endif
 #endif
 	if (seedBuffer)
 	{
@@ -178,6 +220,28 @@ void FreeBuffers() {
 	if (specularBounce) free(specularBounce);
 	if (throughput) free(throughput);
 	if (ray) free(ray);
+
+#ifdef CPU_PARTRENDERING
+    for(int i = 0; i < cntBuffers; i++) {
+        if (results_boxes[i]) free(results_boxes[i]);
+        if (terminated_boxes[i]) free(terminated_boxes[i]);
+        if (specularBounce_boxes[i]) free(specularBounce_boxes[i]);
+        if (throughputs_boxes[i]) free(throughputs_boxes[i]);
+        if (seeds_boxes[i]) free(seeds_boxes[i]);
+        if (rays_boxes[i]) free(rays_boxes[i]);
+        if (pixels_boxes[i]) free(pixels_boxes[i]);
+        if (colors_boxes[i]) free(colors_boxes[i]);
+    }
+
+    if (results_boxes) free(results_boxes);
+    if (terminated_boxes) free(terminated_boxes);
+    if (specularBounce_boxes) free(specularBounce_boxes);
+    if (throughputs_boxes) free(throughputs_boxes);
+    if (seeds_boxes) free(seeds_boxes);
+    if (rays_boxes) free(rays_boxes);
+    if (pixels_boxes) free(pixels_boxes);
+    if (colors_boxes) free(colors_boxes);
+#endif
 #endif
 	if (seeds) free(seeds);
 	if (colors) free(colors);
@@ -242,7 +306,71 @@ void AllocateBuffers() {
 	result = (Result *)malloc(sizeof(Result) * width * height);
 
 	resultBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Result) *  width * height, NULL, &status);
-	clErrchk(status);	
+	clErrchk(status);
+
+#ifdef CPU_PARTRENDERING
+    int cntBuffers = (width * height) / (BWIDTH * BHEIGHT);
+
+    colors_boxes = (Vec **) malloc(sizeof(Vec *) * cntBuffers);
+    pixels_boxes = (unsigned int **) malloc(sizeof(unsigned int *) * cntBuffers);
+    rays_boxes = (Ray **) malloc(sizeof(Ray *) * cntBuffers);
+    seeds_boxes =  (unsigned int **) malloc(sizeof(unsigned int *) * cntBuffers);
+    throughputs_boxes =  (Vec **) malloc(sizeof(Vec *) * cntBuffers);
+    specularBounce_boxes =  (char **) malloc(sizeof(char *) * cntBuffers);
+    terminated_boxes =  (char **) malloc(sizeof(char *) * cntBuffers);
+    results_boxes =  (Result **) malloc(sizeof(Result *) * cntBuffers);
+
+    colorboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
+    pixelboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
+    rayboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
+    seedsboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
+    throughputboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
+    specularBounceboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
+    terminatedboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
+    resultboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
+
+    for(int i = 0; i < cntBuffers; i++) {
+        colors_boxes[i] = (Vec *)malloc(sizeof(Vec) * BWIDTH * BHEIGHT);
+
+        colorboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Vec) * BWIDTH * BHEIGHT, NULL, &status);
+        clErrchk(status);
+
+        pixels_boxes[i] = (unsigned int *)malloc(sizeof(unsigned int) * BWIDTH * BHEIGHT);
+
+        pixelboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * BWIDTH * BHEIGHT, NULL, &status);
+        clErrchk(status);
+
+        rays_boxes[i] = (Ray *)malloc(sizeof(Ray) * BWIDTH * BHEIGHT);
+
+        rayboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Ray) * BWIDTH * BHEIGHT, NULL, &status);
+        clErrchk(status);
+
+        seeds_boxes[i] = (unsigned int *)malloc(sizeof(unsigned int) * BWIDTH * BHEIGHT * 2);
+
+        seedsboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * BWIDTH * BHEIGHT * 2, NULL, &status);
+        clErrchk(status);
+
+        throughputs_boxes[i] = (Vec *) malloc(sizeof(Vec) * BWIDTH * BHEIGHT);
+
+        throughputboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Vec) * BWIDTH * BHEIGHT, NULL, &status);
+        clErrchk(status);
+
+        specularBounce_boxes[i] = (char *) malloc(sizeof(char) * BWIDTH * BHEIGHT);
+
+        specularBounceboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(char) * BWIDTH * BHEIGHT, NULL, &status);
+        clErrchk(status);
+
+        terminated_boxes[i] = (char *) malloc(sizeof(char) * BWIDTH * BHEIGHT);
+
+        terminatedboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(char) * BWIDTH * BHEIGHT, NULL, &status);
+        clErrchk(status);
+
+        results_boxes[i] = (Result *) malloc(sizeof(Result) * BWIDTH * BHEIGHT);
+
+        resultboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Result) * BWIDTH * BHEIGHT, NULL, &status);
+        clErrchk(status);
+    }
+#endif
 #endif
 }
 
@@ -295,9 +423,9 @@ void SetUpOpenCL() {
 		for (i = 0; i < numPlatforms; ++i) {
 			char pbuf[100];
 
-			clErrchk(clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, sizeof(pbuf), pbuf, NULL));			
+			clErrchk(clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, sizeof(pbuf), pbuf, NULL));
 			clErrchk(clGetPlatformIDs(numPlatforms, platforms, NULL));
-			
+
 			LOGI("OpenCL Platform %d: %s\n", i, pbuf);
 		}
 
@@ -310,7 +438,7 @@ void SetUpOpenCL() {
 	cl_uint deviceCount;
 
 	clErrchk(clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 32, devices, &deviceCount));
-	
+
 	int deviceFound = 0;
 	cl_device_id selectedDevice;
 	unsigned int i;
@@ -319,7 +447,7 @@ void SetUpOpenCL() {
 		cl_device_type type = 0;
 
 		clErrchk(clGetDeviceInfo(devices[i], CL_DEVICE_TYPE, sizeof(cl_device_type), &type, NULL));
-		
+
 		char stype[MAX_STYPE];
 		switch (type) {
 			case CL_DEVICE_TYPE_ALL:
@@ -350,18 +478,18 @@ void SetUpOpenCL() {
 		LOGI("OpenCL Device %d: Type = %s\n", i, stype);
 
 		char buf[256];
-		clErrchk(clGetDeviceInfo(devices[i], CL_DEVICE_NAME, sizeof(char[256]), &buf, NULL));		
+		clErrchk(clGetDeviceInfo(devices[i], CL_DEVICE_NAME, sizeof(char[256]), &buf, NULL));
 
 		LOGI("OpenCL Device %d: Name = %s\n", i, buf);
 
 		cl_uint units = 0;
-		clErrchk(clGetDeviceInfo(devices[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &units, NULL));		
+		clErrchk(clGetDeviceInfo(devices[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &units, NULL));
 
 		LOGI("OpenCL Device %d: Compute units = %u\n", i, units);
 
 		size_t gsize = 0;
 		clErrchk(clGetDeviceInfo(devices[i], CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &gsize, NULL));
-		
+
 		LOGI("OpenCL Device %d: Max. work group size = %d\n", i, (unsigned int)gsize);
 	}
 
@@ -382,14 +510,14 @@ void SetUpOpenCL() {
     /* Get the device list data */
 	size_t deviceListSize;
 	clErrchk(clGetContextInfo(context, CL_CONTEXT_DEVICES, 32, devices, &deviceListSize));
-	
+
 	/* Print devices list */
 	for (i = 0; i < deviceListSize / sizeof(cl_device_id); ++i) {
 		cl_device_type type = 0;
 		char stype[MAX_STYPE];
 
 		clErrchk(clGetDeviceInfo(devices[i], CL_DEVICE_TYPE, sizeof(cl_device_type), &type, NULL));
-		
+
 		switch (type) {
 			case CL_DEVICE_TYPE_ALL:
 				strcpy(stype, "TYPE_ALL");
@@ -412,24 +540,24 @@ void SetUpOpenCL() {
 
 		char buf[256];
 		clErrchk(clGetDeviceInfo(devices[i], CL_DEVICE_NAME, sizeof(char[256]), &buf, NULL));
-		
+
 		LOGI("[SELECTED] OpenCL Device %d: Name = %s\n", i, buf);
 
 		cl_uint units = 0;
 		clErrchk(clGetDeviceInfo(devices[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &units, NULL));
-		
+
 		LOGI("[SELECTED] OpenCL Device %d: Compute units = %u\n", i, units);
 
 		size_t gsize = 0;
 		clErrchk(clGetDeviceInfo(devices[i], CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &gsize, NULL));
-		
+
 		LOGI("[SELECTED] OpenCL Device %d: Max. work group size = %d\n", i, (unsigned int)gsize);
 	}
 
 	cl_command_queue_properties prop = 0;
 
 	commandQueue = clCreateCommandQueue(context, devices[0], prop, &status);
-	clErrchk(status);	
+	clErrchk(status);
 
 	/*------------------------------------------------------------------------*/
 #ifdef __ANDROID__
@@ -438,9 +566,9 @@ void SetUpOpenCL() {
     shapeBuffer = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(Shape) * shapeCnt, NULL, &status);
 #endif
 	clErrchk(status);
-	
+
 	clErrchk(clEnqueueWriteBuffer(commandQueue, shapeBuffer, CL_TRUE, 0, sizeof(Shape) * shapeCnt, shapes, 0, NULL, NULL));
-	
+
 #if (ACCELSTR == 1)
 	/*------------------------------------------------------------------------*/
 	btnBuffer = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(BVHNodeGPU) * (shapeCnt-1), NULL, &status);
@@ -460,7 +588,7 @@ void SetUpOpenCL() {
 	clErrchk(status);
 
 	clErrchk(clEnqueueWriteBuffer(commandQueue, cameraBuffer, CL_TRUE, 0, sizeof(Camera), &camera, 0, NULL, NULL));
-	
+
 	AllocateBuffers();
 
 	/*------------------------------------------------------------------------*/
@@ -482,11 +610,11 @@ void SetUpOpenCL() {
 
         size_t retValSize;
 		clErrchk(clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &retValSize));
-        
+
         char *buildLog = (char *)malloc(retValSize + 1);
 		clErrchk(clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, retValSize, buildLog, NULL));
-		
-        buildLog[retValSize] = '\0';		
+
+        buildLog[retValSize] = '\0';
 #ifdef PTX_ERROR
 		// Query binary (PTX file) size
 		size_t bin_sz;
@@ -563,10 +691,10 @@ void SetUpOpenCL() {
 
 		size_t retValSize;
 		clErrchk(clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &retValSize));
-		
+
 		char *buildLog = (char *)malloc(retValSize + 1);
 		clErrchk(clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, retValSize, buildLog, NULL));
-		
+
 		buildLog[retValSize] = '\0';
 #if 0
 		// Query binary (PTX file) size
@@ -663,29 +791,20 @@ void ExecuteKernel() {
 
 #ifdef CPU_PARTRENDERING
 #ifdef EXP_KERNEL
-char **specularBounce_boxes, **terminated_boxes;
-unsigned int **pixels_boxes, **seeds_boxes;
-Vec **colors_boxes, **throughputs_boxes;
-Ray **rays_boxes;
-Result **results_boxes;
-
-cl_mem *colorboxBuffer, *pixelboxBuffer, *rayboxBuffer, *seedsboxBuffer, *throughputboxBuffer,  *specularBounceboxBuffer, *terminatedboxBuffer, *resultboxBuffer;
-
 void DrawBoxCPU(short xstart, short ystart, short bwidth, short bheight, short twidth, short theight, double &cpuTotalTime, double &rwTotalTime, short kindex) {
     const float invWidth = 1.f / twidth;
     const float invHeight = 1.f / theight;
 
     double cpuStartTime = WallClockTime();
 
-//#pragma omp parallel for
+#pragma omp parallel for
     for (int y = ystart; y < ystart + bheight; y++) { /* Loop over image rows */
         for (int x = xstart; x < xstart + bwidth; x++) { /* Loop cols */
-            const int i = (theight - y - 1) * twidth + x;
-            const int iBox = (bheight - (y - ystart) - 1) * bwidth + (x - xstart);
+            const int i = (y - ystart) * bwidth + (x - xstart);//(bheight - (y - ystart) - 1) * bwidth + (x - xstart);
             const int i2 = i << 1;
 
-            const float r1 = GetRandom(&seeds[i2], &seeds[i2 + 1]) - .5f;
-            const float r2 = GetRandom(&seeds[i2], &seeds[i2 + 1]) - .5f;
+            const float r1 = GetRandom(&seeds_boxes[kindex][i2], &seeds_boxes[kindex][i2 + 1]) - .5f;
+            const float r2 = GetRandom(&seeds_boxes[kindex][i2], &seeds_boxes[kindex][i2 + 1]) - .5f;
             const float kcx = (x + r1) * invWidth - .5f;
             const float kcy = (y + r2) * invHeight - .5f;
 
@@ -714,18 +833,18 @@ void DrawBoxCPU(short xstart, short ystart, short bwidth, short bheight, short t
                     &ray, &seeds[i2], &seeds[i2 + 1], &r);
 
             if (currentSample == 0)
-                colors_boxes[kindex][iBox] = r;
+                colors_boxes[kindex][i] = r;
             else {
                 const float k1 = currentSample;
                 const float k2 = 1.f / (k1 + 1.f);
-                (colors_boxes[kindex][iBox]).s[0] = ((colors_boxes[kindex][iBox]).s[0] * k1 + r.s[0]) * k2;
-                (colors_boxes[kindex][iBox]).s[1] = ((colors_boxes[kindex][iBox]).s[1] * k1 + r.s[1]) * k2;
-                (colors_boxes[kindex][iBox]).s[2] = ((colors_boxes[kindex][iBox]).s[2] * k1 + r.s[2]) * k2;
+                (colors_boxes[kindex][i]).s[0] = ((colors_boxes[kindex][i]).s[0] * k1 + r.s[0]) * k2;
+                (colors_boxes[kindex][i]).s[1] = ((colors_boxes[kindex][i]).s[1] * k1 + r.s[1]) * k2;
+                (colors_boxes[kindex][i]).s[2] = ((colors_boxes[kindex][i]).s[2] * k1 + r.s[2]) * k2;
             }
 
-            pixels_boxes[kindex][iBox] = toInt((colors_boxes[kindex][iBox]).s[0]) |
-                                     (toInt((colors_boxes[kindex][iBox]).s[1]) << 8) |
-                                     (toInt((colors_boxes[kindex][iBox]).s[2]) << 16);
+            pixels_boxes[kindex][i] = toInt((colors_boxes[kindex][i]).s[0]) |
+                                     (toInt((colors_boxes[kindex][i]).s[1]) << 8) |
+                                     (toInt((colors_boxes[kindex][i]).s[2]) << 16) | 0xff000000;
         }
     }
     cpuTotalTime += (WallClockTime() - cpuStartTime);
@@ -746,13 +865,15 @@ void DrawBoxExpKernel(short xstart, short ystart, short bwidth, short bheight, s
     clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *)&ystart));
     clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *)&bwidth));
     clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *)&bheight));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *)&twidth));
+    clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *)&theight));
     clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&rayboxBuffer[kindex]));
     clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&throughputboxBuffer[kindex]));
     clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&specularBounceboxBuffer[kindex]));
     clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&terminatedboxBuffer[kindex]));
     clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&resultboxBuffer[kindex]));
 
-    ExecuteKernel(kernelGenBox, bwidth * bheight);
+    ExecuteKernel(kernelGenBox, rayCnt);
     clFinish(commandQueue);
 
     for (int i = 0; i < MAX_DEPTH; i++)
@@ -804,13 +925,13 @@ void DrawBoxExpKernel(short xstart, short ystart, short bwidth, short bheight, s
     setTotalTime += (WallClockTime() - setStartTime);
 
     kernelStartTime = WallClockTime();
-    ExecuteKernel(kernelFillBox, width * height);
+    ExecuteKernel(kernelFillBox, rayCnt);
     //clFinish(commandQueue);
     kernelTotalTime += (WallClockTime() - kernelStartTime);
 }
 
 unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool bFirst) {
-	int startSampleCount = currentSample, nGPU = 0, nCPU = 1, index = 0, cntThreads = bwidth * bheight, cntBuffers = (width * height) / cntThreads;
+	int startSampleCount = currentSample, nGPU = 0, nCPU = 1, index = 0, cntBuffers = (width * height) / (bwidth * bheight);
 	bool cpuTurn = false;
 	double startTime = WallClockTime(), setStartTime, kernelStartTime;
 	double setTotalTime = 0.0, kernelTotalTime = 0.0, rwTotalTime = 0.0;
@@ -818,70 +939,17 @@ unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool b
 
 	cl_int status;
 
-    colors_boxes = (Vec **) malloc(sizeof(Vec *) * cntBuffers);
-    pixels_boxes = (unsigned int **) malloc(sizeof(unsigned int *) * cntBuffers);
-    rays_boxes = (Ray **) malloc(sizeof(Ray *) * cntBuffers);
-    seeds_boxes =  (unsigned int **) malloc(sizeof(unsigned int *) * cntBuffers);
-    throughputs_boxes =  (Vec **) malloc(sizeof(Vec *) * cntBuffers);
-    specularBounce_boxes =  (char **) malloc(sizeof(char *) * cntBuffers);
-    terminated_boxes =  (char **) malloc(sizeof(char *) * cntBuffers);
-    results_boxes =  (Result **) malloc(sizeof(Result *) * cntBuffers);
-
-    colorboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
-    pixelboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
-    rayboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
-    seedsboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
-    throughputboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
-    specularBounceboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
-    terminatedboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
-    resultboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
-
-    for(int i = 0; i < cntBuffers; i++) {
-        colors_boxes[i] = (Vec *)malloc(sizeof(Vec) * bwidth * bheight);
-
-        colorboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Vec) * bwidth * bheight, NULL, &status);
-        clErrchk(status);
-
-        pixels_boxes[i] = (unsigned int *)malloc(sizeof(unsigned int) * bwidth * bheight);
-
-        pixelboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * bwidth * bheight, NULL, &status);
-        clErrchk(status);
-
-        rays_boxes[i] = (Ray *)malloc(sizeof(Ray) * bwidth * bheight);
-
-        rayboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Ray) * bwidth * bheight, NULL, &status);
-        clErrchk(status);
-
-        seeds_boxes[i] = (unsigned int *)malloc(sizeof(unsigned int) * bwidth * bheight);
-
-        seedsboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * bwidth * bheight, NULL, &status);
-        clErrchk(status);
-
-        throughputs_boxes[i] = (Vec *) malloc(sizeof(Vec) * bwidth * bheight);
-
-        throughputboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Vec) * bwidth * bheight, NULL, &status);
-        clErrchk(status);
-
-        specularBounce_boxes[i] = (char *) malloc(sizeof(char) * bwidth * bheight);
-
-        specularBounceboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(char) * bwidth * bheight, NULL, &status);
-        clErrchk(status);
-
-        terminated_boxes[i] = (char *) malloc(sizeof(char) * bwidth * bheight);
-
-        terminatedboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(char) * bwidth * bheight, NULL, &status);
-        clErrchk(status);
-
-        results_boxes[i] = (Result *) malloc(sizeof(Result) * bwidth * bheight);
-
-        resultboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Result) * bwidth * bheight, NULL, &status);
-        clErrchk(status);
-    }
-
 	for (int y = 0; y < height; y += bheight) {
 		for (int x = 0; x < width; x += bwidth) {
-            for(int i = 0; i < bheight; i++)
-                memcpy(seeds_boxes[index] + i * sizeof(unsigned int) * bwidth, seeds + x * sizeof(unsigned int) + (y + i) * width * sizeof(unsigned int), sizeof(unsigned int) * bwidth);
+            for(int i = 0; i < bheight; i++) {
+                memcpy((char *) seeds_boxes[index] + i * sizeof(unsigned int) * bwidth * 2,
+                       (char *) seeds + x * sizeof(unsigned int) * 2 + (y + i) * width * sizeof(unsigned int) * 2,
+                       sizeof(unsigned int) * bwidth * 2);
+
+                memcpy((char *) colors_boxes[index] + i * sizeof(Vec) * bwidth,
+                       (char *) colors + x * sizeof(Vec) + (y + i) * width * sizeof(Vec),
+                       sizeof(Vec) * bwidth);
+            }
 
 			if (cpuTurn) {
 				DrawBoxCPU(x, y, bwidth, bheight, width, height, cpuTotalTime, rwTotalTime, index);
@@ -889,51 +957,41 @@ unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool b
 				nCPU++;
 			}
 			else {
-                clErrchk(clEnqueueWriteBuffer(commandQueue, seedsboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight, seeds_boxes[index], 0, NULL, NULL));
+                clErrchk(clEnqueueWriteBuffer(commandQueue, colorboxBuffer[index], CL_TRUE, 0, sizeof(Vec) * bwidth * bheight, colors_boxes[index], 0, NULL, NULL));
+                clErrchk(clEnqueueWriteBuffer(commandQueue, seedsboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight * 2, seeds_boxes[index], 0, NULL, NULL));
 
  				DrawBoxExpKernel(x, y, bwidth, bheight, width, height, setTotalTime, kernelTotalTime, rwTotalTime, index);
+                //clFinish(commandQueue);
 
-                clErrchk(clEnqueueReadBuffer(commandQueue, seedsboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight, seeds_boxes[index], 0, NULL, NULL));
+                double rwStartTime = WallClockTime();
+                clErrchk(clEnqueueReadBuffer(commandQueue, seedsboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight * 2, seeds_boxes[index], 0, NULL, NULL));
                 clErrchk(clEnqueueReadBuffer(commandQueue, colorboxBuffer[index], CL_TRUE, 0, sizeof(Vec) * bwidth * bheight, colors_boxes[index], 0, NULL, NULL));
+                clErrchk(clEnqueueReadBuffer(commandQueue, pixelboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight, pixels_boxes[index], 0, NULL, NULL));
+                rwTotalTime += (WallClockTime() - rwStartTime);
 
-				nGPU++;
+                nGPU++;
 			}
 
             if ((float)nGPU / nCPU >= *rCPU) cpuTurn = true;
             else cpuTurn = false;
 
+            for(int i = 0; i < bheight; i++) {
+                memcpy((char *) colors + x * sizeof(Vec) + (y + i) * width * sizeof(Vec),
+                       (char *) colors_boxes[index] + i * sizeof(Vec) * bwidth,
+                       sizeof(Vec) * bwidth);
+
+                memcpy((char *) seeds + x * sizeof(unsigned int) * 2 + (y + i) * width * sizeof(unsigned int) * 2,
+                       (char *) seeds_boxes[index] + i * sizeof(unsigned int) * bwidth * 2,
+                       sizeof(unsigned int) * bwidth * 2);
+
+                memcpy((char *)pixels + x * sizeof(unsigned int) + (y + i) * width * sizeof(unsigned int),
+                       (char *)pixels_boxes[index] + i * sizeof(unsigned int) * bwidth,
+                       sizeof(unsigned int) * bwidth);
+            }
+
             index++;
-		}
+        }
 	}
-
-    for(int i = 0; i < cntBuffers; i++) {
-        double rwStartTime = WallClockTime();
-        clErrchk(clEnqueueReadBuffer(commandQueue, pixelboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight, pixels_boxes[index], 0, NULL, NULL));
-        rwTotalTime += (WallClockTime() - rwStartTime);
-
-        int x = (i % (width/bwidth)) * bwidth, y = (i / (width/bwidth)) * bheight;
-
-        for (int j = 0; j < bheight; j++)
-            memcpy(pixels + x * sizeof(unsigned int) + (y + j) * width * sizeof(unsigned int), pixels_boxes[index] + i * sizeof(unsigned int) * bwidth, sizeof(unsigned int) * bwidth);
-
-        free(results_boxes[i]);clErrchk(clReleaseMemObject(resultboxBuffer[i]));
-        free(terminated_boxes[i]);clErrchk(clReleaseMemObject(terminatedboxBuffer[i]));
-        free(specularBounce_boxes[i]);clErrchk(clReleaseMemObject(specularBounceboxBuffer[i]));
-        free(throughputs_boxes[i]);clErrchk(clReleaseMemObject(throughputboxBuffer[i]));
-        free(seeds_boxes[i]);clErrchk(clReleaseMemObject(seedsboxBuffer[i]));
-        free(rays_boxes[i]);clErrchk(clReleaseMemObject(rayboxBuffer[i]));
-        free(pixels_boxes[i]);clErrchk(clReleaseMemObject(pixelboxBuffer[i]));
-        free(colors_boxes[i]);clErrchk(clReleaseMemObject(colorboxBuffer[i]));
-    }
-
-    free(results_boxes);free(resultboxBuffer);
-    free(terminated_boxes);free(terminatedboxBuffer);
-    free(specularBounce_boxes);free(specularBounceboxBuffer);
-    free(throughputs_boxes);free(throughputboxBuffer);
-    free(seeds_boxes);free(seedsboxBuffer);
-    free(rays_boxes);free(rayboxBuffer);
-    free(pixels_boxes);free(pixelboxBuffer);
-    free(colors_boxes);free(colorboxBuffer);
 
 	if (bFirst) *rCPU = (cpuTotalTime / (nCPU - 1)) / ((setTotalTime + kernelTotalTime + rwTotalTime) / nGPU);
 
@@ -1194,7 +1252,7 @@ unsigned int *DrawFrame()
     static bool first = true;
 
 #ifdef EXP_KERNEL
-    unsigned int *pPixels = DrawAllBoxesExpKernel(160, 120, &rCPU, first);
+    unsigned int *pPixels = DrawAllBoxesExpKernel(BWIDTH, BHEIGHT, &rCPU, first);
 #else
     unsigned int *pPixels = DrawAllBoxes(160, 120, &rCPU, first);
 #endif
@@ -1359,7 +1417,7 @@ unsigned int *DrawFrame() {
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *)&shapeBuffer));
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(short), (void *) &shapeCnt));
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(short), (void *)&lightCnt));
-#if (ACCELSTR == 1)	
+#if (ACCELSTR == 1)
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *)&btnBuffer));
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *)&btlBuffer));
 #elif (ACCELSTR == 2)
@@ -1381,18 +1439,18 @@ unsigned int *DrawFrame() {
 	clErrchk(status);
 
 	clErrchk(clEnqueueWriteBuffer(commandQueue, debugBuffer1, CL_TRUE, 0, sizeof(int) * shapeCnt, debug1, 0, NULL, NULL));
-	
+
 	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *) &debugBuffer1));
-    
+
 	float *debug2 = (float *)malloc(6 * sizeof(float) * shapeCnt);
 	memset(debug2, 0, sizeof(float) * shapeCnt);
 
 	cl_mem debugBuffer2 = clCreateBuffer(context, CL_MEM_READ_WRITE, 6 * sizeof(float) * shapeCnt, NULL, &status);
 	clErrchk(status);
-	
+
 	clErrchk(clEnqueueWriteBuffer(commandQueue, debugBuffer2, CL_TRUE, 0, 6 * sizeof(float) * shapeCnt, debug2, 0, NULL, NULL));
-	
-	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *) &debugBuffer2));	
+
+	clErrchk(clSetKernelArg(kernel, index++, sizeof(cl_mem), (void *) &debugBuffer2));
 #endif
 	setTotalTime += (WallClockTime() - setStartTime);
 
@@ -1550,7 +1608,7 @@ void displayFunc(void) {
 #else
 	DrawFrame();
 #endif
-	glDrawPixels(width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);	
+	glDrawPixels(width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 	glutSwapBuffers();
 }
 
@@ -1684,7 +1742,7 @@ void keyFunc(unsigned char key, int x, int y) {
 
 void specialFunc(int key, int x, int y) {
 	switch (key) {
-	case GLUT_KEY_UP: {		
+	case GLUT_KEY_UP: {
 		camera.pitch += -0.01;
 		camera.pitch = clamp(camera.pitch, -PI_OVER_TWO, PI_OVER_TWO);
 		ReInit(0);
@@ -1728,7 +1786,7 @@ void InitGlut(int argc, char *argv[], char *windowTittle) {
 	glutInit(&argc, argv);
 
 	glutCreateWindow(windowTittle);
-	
+
 	glutReshapeFunc(reshapeFunc);
 	glutMouseFunc(mouseFunc);
 	glutMotionFunc(motionFunc);
@@ -1754,11 +1812,11 @@ int main(int argc, char *argv[]) {
 		//strcpy(forceWorkSize, argv[2]);
 #ifndef EXP_KERNEL
 		strcpy(kernelFileName, argv[3]);
-#endif        
+#endif
         width = atoi(argv[4]);
         height = atoi(argv[5]);
-		
-		Read(argv[6], &walllight);
+
+		Reaad(argv[6], &walllight);
 		if (walllight) AddWallLight();
 
 #if (ACCELSTR == 0)
@@ -1770,7 +1828,7 @@ int main(int argc, char *argv[]) {
 		BuildKDtree();
 		SetUpOpenCL();
 #endif
-		UpdateCamera();		
+		UpdateCamera();
     } else if (argc == 1) {
 		srand(time(NULL));
 
@@ -1793,13 +1851,13 @@ int main(int argc, char *argv[]) {
 	{
 		LOGE("Usage: %s\n", argv[0]);
 		LOGE("Usage: %s <use CPU/GPU device (0=CPU or 1=GPU)> <workgroup size (0=default value or anything > 0 and power of 2)> <kernel file name> <window width> <window height> <scene file>\n", argv[0]);
-	
+
 		exit(-1);
 	}
-	
+
     /*------------------------------------------------------------------------*/
 	InitGlut(argc, argv, (char *)"SmallPTGPU (Added the BVH and KDTree for the intersection tests)");
-	
+
 	LOGI("Acceleration for intersection test: ");
 #if (ACCELSTR == 0)
 	LOGI("No Accel\n");
@@ -1807,7 +1865,7 @@ int main(int argc, char *argv[]) {
 	LOGI("BVH\n");
 #elif (ACCELSTR == 2)
 	LOGI("KDTree\n");
-#endif	
+#endif
 
 	glutMainLoop();
 
@@ -1817,15 +1875,15 @@ int main(int argc, char *argv[]) {
 
 void AddWallLight()
 {
-	shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ WALL_RAD + 25.0f, 0.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .75f, .25f, .25f }; shapes[shapeCnt++].refl = DIFF; /* Left */
-	shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ -WALL_RAD - 25.0f, 0.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .25f, .25f, .75f }; shapes[shapeCnt++].refl = DIFF; /* Rght */
-	shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ 0.0f, 0.0f, WALL_RAD - 25.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .75f, .75f, .75f }; shapes[shapeCnt++].refl = DIFF; /* Back */
-	shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ 0.0f, 0.0f, -WALL_RAD + 100.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { 0.f, 0.f, 0.f }; shapes[shapeCnt++].refl = DIFF; /* Frnt */
-	shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ 0.0f, WALL_RAD + 25.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .75f, .75f, .75f }; shapes[shapeCnt++].refl = DIFF; /* Botm */
-	shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ 0.0f, -WALL_RAD - 25.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .75f, .75f, .75f }; shapes[shapeCnt++].refl = DIFF; /* Top */
-	shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { 5.0f,{ 10.0f, -17.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .9f, .9f, .9f }; shapes[shapeCnt++].refl = SPEC; /* Mirr */
-	shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { 5.0f,{ -10.0f, -17.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .9f, .9f, .9f }; shapes[shapeCnt++].refl = REFR; /* Glas */
-	shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { 2.f,{ 10.0f, 15.0f, 0.0f } };  shapes[shapeCnt].e = { 12.f, 12.f, 12.f }; shapes[shapeCnt].c = { 0.f, 0.f, 0.f }; shapes[shapeCnt++].refl = DIFF; /* Lite */
+    shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ WALL_RAD + 25.0f, 0.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .75f, .25f, .25f }; shapes[shapeCnt++].refl = DIFF; /* Left */
+    shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ -WALL_RAD - 25.0f, 0.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .25f, .25f, .75f }; shapes[shapeCnt++].refl = DIFF; /* Rght */
+    shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ 0.0f, 0.0f, WALL_RAD - 25.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .75f, .75f, .75f }; shapes[shapeCnt++].refl = DIFF; /* Back */
+    shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ 0.0f, 0.0f, -WALL_RAD + 100.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { 0.f, 0.f, 0.f }; shapes[shapeCnt++].refl = DIFF; /* Frnt */
+    shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ 0.0f, WALL_RAD + 25.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .75f, .75f, .75f }; shapes[shapeCnt++].refl = DIFF; /* Botm */
+    shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { WALL_RAD,{ 0.0f, -WALL_RAD - 25.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .75f, .75f, .75f }; shapes[shapeCnt++].refl = DIFF; /* Top */
+    shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { 5.0f,{ 10.0f, -17.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .9f, .9f, .9f }; shapes[shapeCnt++].refl = SPEC; /* Mirr */
+    shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { 5.0f,{ -10.0f, -17.0f, 0.0f } };  shapes[shapeCnt].e = { 0.f, 0.f, 0.f }; shapes[shapeCnt].c = { .9f, .9f, .9f }; shapes[shapeCnt++].refl = REFR; /* Glas */
+    shapes[shapeCnt].type = SPHERE; shapes[shapeCnt].s = { 2.f,{ 10.0f, 15.0f, 0.0f } };  shapes[shapeCnt].e = { 12.f, 12.f, 12.f }; shapes[shapeCnt].c = { 0.f, 0.f, 0.f }; shapes[shapeCnt++].refl = DIFF; /* Lite */
 }
 
 #if (ACCELSTR == 1)
@@ -1846,19 +1904,19 @@ void BuildBVH()
 #elif (ACCELSTR == 2)
 void BuildKDtree()
 {
-	std::vector<Shape *> vs;
+    std::vector<Shape *> vs;
 
-	for (int i = 0; i < shapeCnt; i++) {
-		shapes[i].index = i;
-		//shapes[i].morton_code = 0;
+    for (int i = 0; i < shapeCnt; i++) {
+        shapes[i].index = i;
+        //shapes[i].morton_code = 0;
 
-		vs.push_back(&shapes[i]);
-	}
+        vs.push_back(&shapes[i]);
+    }
 
-	KDTree *kdTree = new KDTree();
-	KDTreeNode *rootNode = kdTree->build(vs, 0);
-	//kdTree->printNode(rootNode, 0);
+    KDTree *kdTree = new KDTree();
+    KDTreeNode *rootNode = kdTree->build(vs, 0);
+    //kdTree->printNode(rootNode, 0);
 
-	kdTree->getTrees(rootNode, &pkngbuf, &kngCnt, &pknbuf, &knCnt);
+    kdTree->getTrees(rootNode, &pkngbuf, &kngCnt, &pknbuf, &knCnt);
 }
 #endif
