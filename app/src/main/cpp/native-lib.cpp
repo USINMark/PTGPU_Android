@@ -29,6 +29,7 @@ extern "C" JNIEXPORT void
 JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_initSmallPtGPU(JNIEnv* env, jobject /* this */, jint u, jint f, jstring k, jint w, jint h, jstring s, jstring r, jobject assetManager)
 {
     bool walllight = true;
+    srand(time(NULL));
 
     useGPU = u;
     forceWorkSize = f;
