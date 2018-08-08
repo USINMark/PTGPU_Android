@@ -845,7 +845,7 @@ void DrawBoxCPU(short xstart, short ystart, short bwidth, short bheight, short t
             const Ray ray = { rorig, rdir };
 
             Vec r;
-            r.s[0] = r.s[1] = r.s[2] = 1.0f;
+            vinit(r, 1.0f, 1.0f, 1.0f);
 
             RadiancePathTracing(shapes, shapeCnt, lightCnt,
 #if (ACCELSTR == 1)
@@ -860,9 +860,10 @@ void DrawBoxCPU(short xstart, short ystart, short bwidth, short bheight, short t
             else {
                 const float k1 = currentSample;
                 const float k2 = 1.f / (k1 + 1.f);
-                (colors_boxes[kindex][i]).s[0] = ((colors_boxes[kindex][i]).s[0] * k1 + r.s[0]) * k2;
-                (colors_boxes[kindex][i]).s[1] = ((colors_boxes[kindex][i]).s[1] * k1 + r.s[1]) * k2;
-                (colors_boxes[kindex][i]).s[2] = ((colors_boxes[kindex][i]).s[2] * k1 + r.s[2]) * k2;
+
+                vsmul(colors_boxes[kindex][i], k1, colors_boxes[kindex][i]);
+                vadd(colors_boxes[kindex][i], colors_boxes[kindex][i], r);
+                vsmul(colors_boxes[kindex][i], k2, colors_boxes[kindex][i]);
             }
 
             pixels_boxes[kindex][i] = (toInt((colors_boxes[kindex][i]).s[0]) << 16) |

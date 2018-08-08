@@ -347,8 +347,9 @@ __constant
 __constant
 #endif
  BVHNodeGPU *btn,
-__constant
-
+#ifdef GPU_KERNEL
+		__constant
+#endif
  BVHNodeGPU *btl,
 #elif (ACCELSTR == 2)
 #ifdef GPU_KERNEL
@@ -474,11 +475,13 @@ __constant
 	const short shapeCnt,
 	const short lightCnt, 
 #if (ACCELSTR == 1)
-__constant
-
+#ifdef GPU_KERNEL
+		__constant
+#endif
  BVHNodeGPU *btn,
-__constant
-
+#ifdef GPU_KERNEL
+		__constant
+#endif
  BVHNodeGPU *btl,
 #elif (ACCELSTR == 2)
 #ifdef GPU_KERNEL
