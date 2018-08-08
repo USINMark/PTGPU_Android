@@ -1289,8 +1289,8 @@ __kernel void RadiancePathTracing_expbox(
 ) {
     const int gid = get_global_id(0);
 
-    const int x = results[gid].x;//gid % width; //
-    const int y = results[gid].y;//gid / width; //
+    const short x = results[gid].x;//gid % width; //
+    const short y = results[gid].y;//gid / width; //
 
     const int sgid2 = ((y - starty) * bwidth + (x - startx)) << 1;
 
@@ -1366,8 +1366,8 @@ __kernel void FillPixel_expbox(
         __global Vec *colors, __global Result *results, __global int *pixels) {
     const int gid = get_global_id(0);
 
-    const int x = gid % width;
-    const int y = gid / width;
+    const short x = gid % width;
+    const short y = gid / width;
 
     const int sgid = y * width + x;
     const int sgid2 = sgid << 1;

@@ -31,16 +31,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef SMALLPT_GPU
 #define INTERSECT_STACK_SIZE (18)
 
-inline float min2(float a, float b)
-{
-	return (a < b) ? a : b;
-}
-
-inline float max2(float a, float b)
-{
-	return (a > b) ? a : b;
-}
-
 inline void swap(float *a, float *b)
 {
 	float temp = *a;
@@ -176,8 +166,8 @@ bool intersection_bound_test(const Ray r, Bound bound) {
 	}
 
 	// find if there an intersection among three t intervals
-	t_min = max2(t_xmin, max2(t_ymin, t_zmin));
-	t_max = min2(t_xmax, min2(t_ymax, t_zmax));
+	t_min = max(t_xmin, max(t_ymin, t_zmin));
+	t_max = min(t_xmax, min(t_ymax, t_zmax));
 
 	return (t_min <= t_max);
 }
@@ -838,9 +828,7 @@ void RadiancePathTracing(
 	int *kn, 
 	short knCnt,
 #endif
-	const Ray *startRay,
-	unsigned int *seed0, unsigned int *seed1,
-	Vec *result) {
+	const Ray *startRay, unsigned int *seed0, unsigned int *seed1, Vec *result) {
 	Ray currentRay; rassign(currentRay, *startRay);
 	Vec rad; vinit(rad, 0.f, 0.f, 0.f);
 	Vec throughput; vinit(throughput, 1.f, 1.f, 1.f);
@@ -931,7 +919,7 @@ void RadianceDirectLighting(
 		}
 
 #ifdef GPU_KERNEL
-OCL_CONSTANT_BUFFER
+__constant
 #endif
 		const Shape *obj = &shapes[id]; /* the hit object */
 

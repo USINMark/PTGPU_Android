@@ -198,7 +198,7 @@ __global
 __constant
 #endif
  const Shape *shapes,
- const unsigned short shapeCnt,
+ const short shapeCnt,
 #if (ACCELSTR == 1)
 __constant
 
