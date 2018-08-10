@@ -314,6 +314,8 @@ void AllocateBuffers() {
 #ifdef CPU_PARTRENDERING
     int cntBuffers = (width * height) / (BWIDTH * BHEIGHT);
 
+    cpuProcessed = (char *)malloc(sizeof(char) * cntBuffers);
+
     colors_boxes = (Vec **) malloc(sizeof(Vec *) * cntBuffers);
     pixels_boxes = (unsigned int **) malloc(sizeof(unsigned int *) * cntBuffers);
     rays_boxes = (Ray **) malloc(sizeof(Ray *) * cntBuffers);
@@ -333,6 +335,8 @@ void AllocateBuffers() {
     resultboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
 
     for(int i = 0; i < cntBuffers; i++) {
+        cpuProcessed[i] = -1;
+
         colors_boxes[i] = (Vec *)malloc(sizeof(Vec) * BWIDTH * BHEIGHT);
 
         int wratio = width / BWIDTH, x = (i % wratio) * BWIDTH, y = (i / wratio) * BHEIGHT;
@@ -389,9 +393,6 @@ void AllocateBuffers() {
 
         resultboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Result) * BWIDTH * BHEIGHT, NULL, &status);
         clErrchk(status);
-
-        cpuProcessed = (char *)malloc(sizeof(char) * ((width * height) / (BWIDTH * BHEIGHT)));
-        memset(cpuProcessed, -1, sizeof(char) * ((width * height) / (BWIDTH * BHEIGHT)));
     }
 #endif
 #endif
@@ -937,6 +938,8 @@ void DrawBoxExpKernel(short xstart, short ystart, short bwidth, short bheight, s
     pindex = 0;
 
     setStartTime = WallClockTime();
+    clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(short), (void *)&xstart));
+    clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(short), (void *)&ystart));
     clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(short), (void *)&bwidth));
     clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(short), (void *)&bheight));
     clErrchk(clSetKernelArg(kernelFillBox, pindex++, sizeof(short), (void *)&currentSample));
@@ -952,19 +955,21 @@ void DrawBoxExpKernel(short xstart, short ystart, short bwidth, short bheight, s
 }
 
 unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool bFirst) {
-	int startSampleCount = currentSample, nGPU = 0, nCPU = 1, index = 0, wratio = width / bwidth;
+	int startSampleCount = currentSample, nGPU = 0, nCPU = 1, index, wratio = width / bwidth;
 	bool cpuTurn = false;
 
 	double startTime = WallClockTime(), setTotalTime = 0.0, kernelTotalTime = 0.0, rwTotalTime = 0.0, cpuTotalTime = 0.0;
 
-    for (int j = 0; j < MAX_SPP; j++) {
+    for (int i = 0; i < MAX_SPP; i++) {
+		index = 0;
+
         for (int y = 0; y < height; y += bheight) {
             for (int x = 0; x < width; x += bwidth) {
                 if (cpuTurn) {
                     if (cpuProcessed[index] == 0) {
                         double rwStartTime = WallClockTime();
-                        clErrchk(clEnqueueReadBuffer(commandQueue, colorboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight, colors_boxes[index], 0, NULL, NULL));
-                        clErrchk(clEnqueueReadBuffer(commandQueue, seedsboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight, seeds_boxes[index], 0, NULL, NULL));
+                        clErrchk(clEnqueueReadBuffer(commandQueue, colorboxBuffer[index], CL_TRUE, 0, sizeof(Vec) * bwidth * bheight, colors_boxes[index], 0, NULL, NULL));
+                        clErrchk(clEnqueueReadBuffer(commandQueue, seedsboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight * 2, seeds_boxes[index], 0, NULL, NULL));
                         rwTotalTime += (WallClockTime() - rwStartTime);
                     }
                     DrawBoxCPU(x, y, bwidth, bheight, width, height, cpuTotalTime, rwTotalTime, index);
@@ -974,8 +979,8 @@ unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool b
                 } else {
                     if (cpuProcessed[index] == 1) {
                         double rwStartTime = WallClockTime();
-                        clErrchk(clEnqueueWriteBuffer(commandQueue, colorboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight, colors_boxes[index], 0, NULL, NULL));
-                        clErrchk(clEnqueueWriteBuffer(commandQueue, seedsboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight, seeds_boxes[index], 0, NULL, NULL));
+                        clErrchk(clEnqueueWriteBuffer(commandQueue, colorboxBuffer[index], CL_TRUE, 0, sizeof(Vec) * bwidth * bheight, colors_boxes[index], 0, NULL, NULL));
+                        clErrchk(clEnqueueWriteBuffer(commandQueue, seedsboxBuffer[index], CL_TRUE, 0, sizeof(unsigned int) * bwidth * bheight * 2, seeds_boxes[index], 0, NULL, NULL));
                         rwTotalTime += (WallClockTime() - rwStartTime);
                     }
                     DrawBoxExpKernel(x, y, bwidth, bheight, width, height, setTotalTime, kernelTotalTime, rwTotalTime, index);
@@ -1591,6 +1596,23 @@ void ReInit(const int reallocBuffers) {
     clErrchk(clEnqueueReadBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(char) *  width * height, specularBounce, 0, NULL, NULL));
     clErrchk(clEnqueueReadBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(char) *  width * height, terminated, 0, NULL, NULL));
     clErrchk(clEnqueueReadBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) *  width * height, result, 0, NULL, NULL));
+#endif
+#else
+#ifdef EXP_KERNEL
+    int index = 0;
+
+    for(int y = 0; y < height; y += BHEIGHT) {
+        for(int x = 0; x < width; x += BWIDTH) {
+            for(int j = 0; j < BHEIGHT; j++) {
+                memcpy((char *) colors_boxes[index] + j * sizeof(Vec) * BWIDTH,
+                       (char *) colors + x * sizeof(Vec) + (y + j) * width * sizeof(Vec),
+                       sizeof(Vec) * BWIDTH);
+            }
+            clErrchk(clEnqueueWriteBuffer(commandQueue, colorboxBuffer[index], CL_TRUE, 0, sizeof(Vec) * BWIDTH * BHEIGHT, colors_boxes[index], 0, NULL, NULL));
+            index++;
+        }
+    }
+
 #endif
 #endif
 }

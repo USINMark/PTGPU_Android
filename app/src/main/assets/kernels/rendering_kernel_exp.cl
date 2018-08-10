@@ -1292,11 +1292,12 @@ __kernel void RadiancePathTracing_expbox(
     const short x = results[gid].x;//gid % width; //
     const short y = results[gid].y;//gid / width; //
 
-    const int sgid2 = ((y - starty) * bwidth + (x - startx)) << 1;
+    const int sgid = ((y - starty) * bwidth + (x - startx));
+    const int sgid2 = sgid << 1;
 
-    if (terminated[gid] != 1)
+    if (terminated[sgid] != 1)
     {
-        Ray aray = rays[gid];
+        Ray aray = rays[sgid];
 
         RadianceOnePathTracing(shapes, shapeCnt, lightCnt,
 #if (ACCELSTR == 1)
@@ -1304,13 +1305,13 @@ __kernel void RadiancePathTracing_expbox(
 #elif (ACCELSTR == 2)
             kng, kngCnt, kn, knCnt,
 #endif
-            &aray, &seedsInput[sgid2], &seedsInput[sgid2+1], &throughput[gid], &specularBounce[gid], &terminated[gid], &results[gid].p
+            &aray, &seedsInput[sgid2], &seedsInput[sgid2+1], &throughput[sgid], &specularBounce[sgid], &terminated[sgid], &results[sgid].p
 #ifdef DEBUG_INTERSECTIONS
         , debug1, debug2
 #endif
         );
 
-        rays[gid] = aray;
+        rays[sgid] = aray;
     }
 }
 
@@ -1362,12 +1363,13 @@ __kernel void GenerateCameraRay_expbox(
 }
 
 __kernel void FillPixel_expbox(
-        const short width, const short height, const short currentSample,
-        __global Vec *colors, __global Result *results, __global int *pixels) {
+    const short startx, const short starty,
+    const short width, const short height, const short currentSample,
+    __global Vec *colors, __global Result *results, __global int *pixels) {
     const int gid = get_global_id(0);
 
-    const short x = gid % width;
-    const short y = gid / width;
+    const short x = results[gid].x - startx; //gid % width;
+    const short y = results[gid].y - starty; //gid / width;
 
     const int sgid = y * width + x;
     const int sgid2 = sgid << 1;
