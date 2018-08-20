@@ -46,8 +46,8 @@ typedef struct {
 #endif
 
 #ifdef CPU_PARTRENDERING
-#define BWIDTH 160
-#define BHEIGHT 120
+#define BWIDTH 80
+#define BHEIGHT 60
 #endif
 
 typedef struct {

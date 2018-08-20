@@ -1288,11 +1288,12 @@ __kernel void RadiancePathTracing_expbox(
 #endif
 ) {
     const int gid = get_global_id(0);
+    if (gid >= bwidth * bheight) return ;
 
-    const short x = results[gid].x;//gid % width; //
-    const short y = results[gid].y;//gid / width; //
+    const short x = results[gid].x - startx;//gid % width; //
+    const short y = results[gid].y - starty;//gid / width; //
 
-    const int sgid = ((y - starty) * bwidth + (x - startx));
+    const int sgid = y * bwidth + x;
     const int sgid2 = sgid << 1;
 
     if (terminated[sgid] != 1)
@@ -1323,9 +1324,10 @@ __kernel void GenerateCameraRay_expbox(
     const short twidth, const short theight,
     __global Ray *rays, __global Vec *throughput, __global char *specularBounce, __global char *terminated, __global Result *results) {
     const int gid = get_global_id(0);
+    if (gid >= bwidth * bheight) return ;
 
-    const int x = (gid % bwidth) + startx;
-    const int y = (gid / bwidth) + starty;
+    const short x = (gid % bwidth) + startx;
+    const short y = (gid / bwidth) + starty;
 
     const int sgid = (y - starty) * bwidth + (x - startx);
     const int sgid2 = sgid << 1;
@@ -1364,17 +1366,18 @@ __kernel void GenerateCameraRay_expbox(
 
 __kernel void FillPixel_expbox(
     const short startx, const short starty,
-    const short width, const short height, const short currentSample,
+    const short bwidth, const short bheight, const short currentSample,
     __global Vec *colors, __global Result *results, __global int *pixels) {
     const int gid = get_global_id(0);
-
+    if (gid >= bwidth * bheight) return ;
+    
     const short x = results[gid].x - startx; //gid % width;
     const short y = results[gid].y - starty; //gid / width;
 
-    const int sgid = y * width + x;
+    const int sgid = y * bwidth + x;
     const int sgid2 = sgid << 1;
 
-    if (y >= height)
+    if (y >= bheight)
         return;
 
     if (currentSample == 0) {
@@ -1389,11 +1392,11 @@ __kernel void FillPixel_expbox(
         colors[sgid].z = (colors[sgid].z * k1 + results[sgid].p.z) * k2;
     }
 #ifdef __ANDROID__
-    pixels[y * width + x] = (toInt(colors[sgid].x)  << 16) |
+    pixels[sgid] = (toInt(colors[sgid].x)  << 16) |
         (toInt(colors[sgid].y) << 8) |
         (toInt(colors[sgid].z)) | 0xff000000;
 #else
-    pixels[y * width + x] = (toInt(colors[sgid].x)) |
+    pixels[sgid] = (toInt(colors[sgid].x)) |
         (toInt(colors[sgid].y) << 8) |
         (toInt(colors[sgid].z) << 16) | 0xff000000;
 #endif

@@ -313,9 +313,8 @@ void AllocateBuffers() {
 
 #ifdef CPU_PARTRENDERING
     int cntBuffers = (width * height) / (BWIDTH * BHEIGHT);
-
-    cpuProcessed = (char *)malloc(sizeof(char) * cntBuffers);
-
+	
+	cpuProcessed = (char *)malloc(sizeof(char) * cntBuffers);
     colors_boxes = (Vec **) malloc(sizeof(Vec *) * cntBuffers);
     pixels_boxes = (unsigned int **) malloc(sizeof(unsigned int *) * cntBuffers);
     rays_boxes = (Ray **) malloc(sizeof(Ray *) * cntBuffers);
@@ -332,24 +331,12 @@ void AllocateBuffers() {
     throughputboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
     specularBounceboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
     terminatedboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
-    resultboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);
-
-    for(int i = 0; i < cntBuffers; i++) {
+    resultboxBuffer = (cl_mem *) malloc(sizeof(cl_mem) * cntBuffers);	
+	    
+	for(int i = 0; i < cntBuffers; i++) {
         cpuProcessed[i] = -1;
 
-        colors_boxes[i] = (Vec *)malloc(sizeof(Vec) * BWIDTH * BHEIGHT);
-
         int wratio = width / BWIDTH, x = (i % wratio) * BWIDTH, y = (i / wratio) * BHEIGHT;
-        for(int j = 0; j < BHEIGHT; j++) {
-            memcpy((char *) colors_boxes[i] + j * sizeof(Vec) * BWIDTH,
-                   (char *) colors + x * sizeof(Vec) + (y + j) * width * sizeof(Vec),
-                   sizeof(Vec) * BWIDTH);
-        }
-
-        colorboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Vec) * BWIDTH * BHEIGHT, NULL, &status);
-        clErrchk(status);
-
-        clErrchk(clEnqueueWriteBuffer(commandQueue, colorboxBuffer[i], CL_TRUE, 0, sizeof(Vec) * BWIDTH * BHEIGHT, colors_boxes[i], 0, NULL, NULL));
 
         pixels_boxes[i] = (unsigned int *)malloc(sizeof(unsigned int) * BWIDTH * BHEIGHT);
 
@@ -362,17 +349,27 @@ void AllocateBuffers() {
         clErrchk(status);
 
         seeds_boxes[i] = (unsigned int *)malloc(sizeof(unsigned int) * BWIDTH * BHEIGHT * 2);
+        colors_boxes[i] = (Vec *)malloc(sizeof(Vec) * BWIDTH * BHEIGHT);
 
         for(int j = 0; j < BHEIGHT; j++) {
             memcpy((char *) seeds_boxes[i] + j * sizeof(unsigned int) * BWIDTH * 2,
-                   (char *) seeds + x * sizeof(unsigned int) * 2 + (y + j) * width * sizeof(unsigned int) * 2,
+                   (char *) seeds + x * sizeof(unsigned int) * 2 + (y + j) * sizeof(unsigned int) * width * 2,
                    sizeof(unsigned int) * BWIDTH * 2);
+
+            memcpy((char *) colors_boxes[i] + j * sizeof(Vec) * BWIDTH,
+                   (char *) colors + x * sizeof(Vec) + (y + j) * width * sizeof(Vec),
+                   sizeof(Vec) * BWIDTH);
         }
 
         seedsboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(unsigned int) * BWIDTH * BHEIGHT * 2, NULL, &status);
         clErrchk(status);
 
         clErrchk(clEnqueueWriteBuffer(commandQueue, seedsboxBuffer[i], CL_TRUE, 0, sizeof(unsigned int) * BWIDTH * BHEIGHT * 2, seeds_boxes[i], 0, NULL, NULL));
+
+        colorboxBuffer[i] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(Vec) * BWIDTH * BHEIGHT, NULL, &status);
+        clErrchk(status);
+
+        clErrchk(clEnqueueWriteBuffer(commandQueue, colorboxBuffer[i], CL_TRUE, 0, sizeof(Vec) * BWIDTH * BHEIGHT, colors_boxes[i], 0, NULL, NULL));
 
         throughputs_boxes[i] = (Vec *) malloc(sizeof(Vec) * BWIDTH * BHEIGHT);
 
@@ -880,6 +877,7 @@ void DrawBoxExpKernel(short xstart, short ystart, short bwidth, short bheight, s
     double setStartTime, kernelStartTime;
     int rayCnt = bwidth * bheight;
 
+#if 0
     /* Set kernel arguments */
     clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&cameraBuffer));
     clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *)&seedsboxBuffer[kindex]));
@@ -897,6 +895,14 @@ void DrawBoxExpKernel(short xstart, short ystart, short bwidth, short bheight, s
 
     ExecuteKernel(kernelGenBox, rayCnt);
     //clFinish(commandQueue);
+#endif
+    //clErrchk(clEnqueueWriteBuffer(commandQueue, cameraBuffer, CL_TRUE, 0, sizeof(Camera), &camera, 0, NULL, NULL));
+    //clErrchk(clEnqueueWriteBuffer(commandQueue, seedBuffer, CL_TRUE, 0, sizeof(unsigned int) * width * height * 2, seeds, 0, NULL, NULL));
+    clErrchk(clEnqueueWriteBuffer(commandQueue, rayboxBuffer[kindex], CL_TRUE, 0, sizeof(Ray) *  bwidth * bheight, rays_boxes[kindex], 0, NULL, NULL));
+    clErrchk(clEnqueueWriteBuffer(commandQueue, throughputboxBuffer[kindex], CL_TRUE, 0, sizeof(Vec) *  bwidth * bheight, throughputs_boxes[kindex], 0, NULL, NULL));
+    clErrchk(clEnqueueWriteBuffer(commandQueue, specularBounceboxBuffer[kindex], CL_TRUE, 0, sizeof(char) *  bwidth * bheight, specularBounce_boxes[kindex], 0, NULL, NULL));
+    clErrchk(clEnqueueWriteBuffer(commandQueue, terminatedboxBuffer[kindex], CL_TRUE, 0, sizeof(char) *  bwidth * bheight, terminated_boxes[kindex], 0, NULL, NULL));
+    clErrchk(clEnqueueWriteBuffer(commandQueue, resultboxBuffer[kindex], CL_TRUE, 0, sizeof(Result) *  bwidth * bheight, results_boxes[kindex], 0, NULL, NULL));
 
     for (int i = 0; i < MAX_DEPTH; i++)
     {
@@ -1004,10 +1010,10 @@ unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool b
             rwTotalTime += (WallClockTime() - rwStartTime);
         }
 
-        int x = (i % wratio) * bwidth, y = (i / wratio) * bheight;
+        const int x = (i % wratio) * bwidth, y = (i / wratio) * bheight;
 
         for (register int j = 0; j < bheight; j++) {
-            memcpy((char *) pixels + x * sizeof(unsigned int) + (y + j) * width * sizeof(unsigned int), (char *) pixels_boxes[i] + j * sizeof(unsigned int) * bwidth, sizeof(unsigned int) * bwidth);
+            memcpy((char *) pixels + (y + j) * width * sizeof(unsigned int) + x * sizeof(unsigned int), (char *) pixels_boxes[i] + j * sizeof(unsigned int) * bwidth, sizeof(unsigned int) * bwidth);
         }
     }
 
@@ -1599,17 +1605,47 @@ void ReInit(const int reallocBuffers) {
 #endif
 #else
 #ifdef EXP_KERNEL
-    int index = 0;
-
-    for(int y = 0; y < height; y += BHEIGHT) {
-        for(int x = 0; x < width; x += BWIDTH) {
-            for(int j = 0; j < BHEIGHT; j++) {
-                memcpy((char *) colors_boxes[index] + j * sizeof(Vec) * BWIDTH,
-                       (char *) colors + x * sizeof(Vec) + (y + j) * width * sizeof(Vec),
-                       sizeof(Vec) * BWIDTH);
+    int pindex = 0, kindex = 0;
+	short bwidth = BWIDTH, bheight = BHEIGHT, twidth = width, theight = height;
+	
+    for(int ystart = 0; ystart < height; ystart += bheight) {
+        for(int xstart = 0; xstart < width; xstart += bwidth) {
+            for(int i = 0; i< bheight; i++) {
+                memcpy((char *) colors_boxes[kindex] + i * sizeof(Vec) * bwidth,
+                       (char *) colors + xstart * sizeof(Vec) + (ystart + i) * width * sizeof(Vec),
+                       sizeof(Vec) * bwidth);
             }
-            clErrchk(clEnqueueWriteBuffer(commandQueue, colorboxBuffer[index], CL_TRUE, 0, sizeof(Vec) * BWIDTH * BHEIGHT, colors_boxes[index], 0, NULL, NULL));
-            index++;
+			
+            clErrchk(clEnqueueWriteBuffer(commandQueue, colorboxBuffer[kindex], CL_TRUE, 0, sizeof(Vec) * bwidth * bheight, colors_boxes[kindex], 0, NULL, NULL));
+			
+			pindex = 0;
+
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *) &cameraBuffer));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *) &seedsboxBuffer[kindex]));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *) &xstart));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *) &ystart));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *) &bwidth));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *) &bheight));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *) &twidth));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(short), (void *) &theight));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *) &rayboxBuffer[kindex]));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *) &throughputboxBuffer[kindex]));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *) &specularBounceboxBuffer[kindex]));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *) &terminatedboxBuffer[kindex]));
+            clErrchk(clSetKernelArg(kernelGenBox, pindex++, sizeof(cl_mem), (void *) &resultboxBuffer[kindex]));
+
+            ExecuteKernel(kernelGenBox, bwidth * bheight);
+            //clFinish(commandQueue);
+
+            //clErrchk(clEnqueueReadBuffer(commandQueue, cameraBuffer, CL_TRUE, 0, sizeof(Camera), &camera, 0, NULL, NULL));
+            //clErrchk(clEnqueueReadBuffer(commandQueue, seedBuffer, CL_TRUE, 0, sizeof(unsigned int) * width * height * 2, seeds, 0, NULL, NULL));
+            clErrchk(clEnqueueReadBuffer(commandQueue, rayboxBuffer[kindex], CL_TRUE, 0, sizeof(Ray) *  bwidth * bheight, rays_boxes[kindex], 0, NULL, NULL));
+            clErrchk(clEnqueueReadBuffer(commandQueue, throughputboxBuffer[kindex], CL_TRUE, 0, sizeof(Vec) *  bwidth * bheight, throughputs_boxes[kindex], 0, NULL, NULL));
+            clErrchk(clEnqueueReadBuffer(commandQueue, specularBounceboxBuffer[kindex], CL_TRUE, 0, sizeof(char) *  bwidth * bheight, specularBounce_boxes[kindex], 0, NULL, NULL));
+            clErrchk(clEnqueueReadBuffer(commandQueue, terminatedboxBuffer[kindex], CL_TRUE, 0, sizeof(char) *  bwidth * bheight, terminated_boxes[kindex], 0, NULL, NULL));
+            clErrchk(clEnqueueReadBuffer(commandQueue, resultboxBuffer[kindex], CL_TRUE, 0, sizeof(Result) *  bwidth * bheight, results_boxes[kindex], 0, NULL, NULL));
+
+            kindex++;
         }
     }
 
