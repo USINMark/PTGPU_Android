@@ -545,49 +545,49 @@ __constant
   const Shape *light = &shapes[i];
 
   if (!viszero(light->e)) {
-  //if (!(((light->e).x == 0.f) && ((light->e).x == 0.f) && ((light->e).z == 0.f))) {
+    //if (!(((light->e).x == 0.f) && ((light->e).x == 0.f) && ((light->e).z == 0.f))) {
 	// this is a light source (as it has an emission component)...
-            lightsVisited++;
+    lightsVisited++;
 
    Ray shadowRay;
    shadowRay.o = *hitPoint;
 
-// choose a random point over the area of the light source
-			Vec lightPoint;
-			Vec lightNormalWhereShadowRayHit;
-			switch (light->type) {
-            case TRIANGLE:
-                {
-                    float barycentricU, barycentricV;
-					Vec e1, e2;
-                    UniformSampleTriangle(GetRandom(seed0, seed1), GetRandom(seed0, seed1), &barycentricU, &barycentricV);
-                    vsub(e1, light->t.p2, light->t.p1)
-                    vsub(e2, light->t.p3, light->t.p1)
-                    vsmul(e1, barycentricU, e1);
-                    vsmul(e2, barycentricV, e2);
-                    vassign(lightPoint, light->t.p1);
-                    vadd(lightPoint, lightPoint, e1);
-                    vadd(lightPoint, lightPoint, e2);
+    // choose a random point over the area of the light source
+    Vec lightPoint;
+    Vec lightNormalWhereShadowRayHit;
+    switch (light->type) {
+    case TRIANGLE:
+        {
+            float barycentricU, barycentricV;
+            Vec e1, e2;
+            UniformSampleTriangle(GetRandom(seed0, seed1), GetRandom(seed0, seed1), &barycentricU, &barycentricV);
+            vsub(e1, light->t.p2, light->t.p1)
+            vsub(e2, light->t.p3, light->t.p1)
+            vsmul(e1, barycentricU, e1);
+            vsmul(e2, barycentricV, e2);
+            vassign(lightPoint, light->t.p1);
+            vadd(lightPoint, lightPoint, e1);
+            vadd(lightPoint, lightPoint, e2);
 
-                    // sets what is the normal on the triangle where the shadow ray hit it
-                    // (it's the same regardless of the point because it's a triangle)
-                    vxcross(lightNormalWhereShadowRayHit, e1, e2);
-                    vnorm(lightNormalWhereShadowRayHit);
-                }
-                break;
+            // sets what is the normal on the triangle where the shadow ray hit it
+            // (it's the same regardless of the point because it's a triangle)
+            vxcross(lightNormalWhereShadowRayHit, e1, e2);
+            vnorm(lightNormalWhereShadowRayHit);
+        }
+        break;
 
-            case SPHERE:
-            default:
-                {
-                    Vec unitSpherePoint;
-                    UniformSampleSphere(GetRandom(seed0, seed1), GetRandom(seed0, seed1), &unitSpherePoint);
-                    vsmul(lightPoint, light->s.rad, unitSpherePoint);
-                    vadd(lightPoint, lightPoint, light->s.p);
+    case SPHERE:
+    default:
+        {
+            Vec unitSpherePoint;
+            UniformSampleSphere(GetRandom(seed0, seed1), GetRandom(seed0, seed1), &unitSpherePoint);
+            vsmul(lightPoint, light->s.rad, unitSpherePoint);
+            vadd(lightPoint, lightPoint, light->s.p);
 
-                    // sets what is the normal on the triangle where the shadow ray hit it
-                    vassign(lightNormalWhereShadowRayHit, unitSpherePoint);
-                }
-			}
+            // sets what is the normal on the triangle where the shadow ray hit it
+            vassign(lightNormalWhereShadowRayHit, unitSpherePoint);
+        }
+    }
  
    vsub(shadowRay.d, lightPoint, *hitPoint);
    //{ (shadowRay.d).x = (spherePoint).x - (*hitPoint).x; (shadowRay.d).y = (spherePoint).y - (*hitPoint).y; (shadowRay.d).z = (spherePoint).z - (*hitPoint).z; };
@@ -787,7 +787,7 @@ __constant
    //{ float k = (sin(r1) * r2s); { (v).x = k * (v).x; (v).y = k * (v).y; (v).z = k * (v).z; } };
    vadd(newDir, u, v);
    //{ (newDir).x = (u).x + (v).x; (newDir).y = (u).y + (v).y; (newDir).z = (u).z + (v).z; };
-   vsmul(w, sqrt(1 - r2), w);
+   vsmul(w, sqrt(1 - r2), w); //sqrt(max(0.0f, 1 - r2))
    //{ float k = (sqrt(1 - r2)); { (w).x = k * (w).x; (w).y = k * (w).y; (w).z = k * (w).z; } };
    vadd(newDir, newDir, w);
    //{ (newDir).x = (newDir).x + (w).x; (newDir).y = (newDir).y + (w).y; (newDir).z = (newDir).z + (w).z; };
