@@ -966,11 +966,11 @@ unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool b
 
 	double startTime = WallClockTime(), setTotalTime = 0.0, kernelTotalTime = 0.0, rwTotalTime = 0.0, cpuTotalTime = 0.0;
 
-    for (int i = 0; i < MAX_SPP; i++) {
-		index = 0;
+    index = 0;
 
-        for (int y = 0; y < height; y += bheight) {
-            for (int x = 0; x < width; x += bwidth) {
+    for (int y = 0; y < height; y += bheight) {
+        for (int x = 0; x < width; x += bwidth) {
+            for (int i = 0; i < MAX_SPP; i++) {
                 if (cpuTurn) {
                     if (cpuProcessed[index] == 0) {
                         double rwStartTime = WallClockTime();
@@ -979,7 +979,6 @@ unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool b
                         rwTotalTime += (WallClockTime() - rwStartTime);
                     }
                     DrawBoxCPU(x, y, bwidth, bheight, width, height, cpuTotalTime, rwTotalTime, index);
-                    cpuProcessed[index] = 1;
 
                     nCPU++;
                 } else {
@@ -990,16 +989,17 @@ unsigned int *DrawAllBoxesExpKernel(int bwidth, int bheight, float *rCPU, bool b
                         rwTotalTime += (WallClockTime() - rwStartTime);
                     }
                     DrawBoxExpKernel(x, y, bwidth, bheight, width, height, setTotalTime, kernelTotalTime, rwTotalTime, index);
-                    cpuProcessed[index] = 0;
 
                     nGPU++;
                 }
-
-                if ((float) nGPU / nCPU >= *rCPU) cpuTurn = true;
-                else cpuTurn = false;
-
-                index++;
             }
+            if (cpuTurn) cpuProcessed[index] = 1;
+            else cpuProcessed[index] = 0;
+
+            if ((float) nGPU / nCPU >= *rCPU) cpuTurn = true;
+            else cpuTurn = false;
+
+            index++;
         }
     }
 
@@ -1280,7 +1280,6 @@ unsigned int *DrawFrame()
 #else
     unsigned int *pPixels = DrawAllBoxes(160, 120, &rCPU, first);
 #endif
-    LOGI("The ratio of CPU is %f\n", rCPU);
     first = false;
 
     return pPixels;

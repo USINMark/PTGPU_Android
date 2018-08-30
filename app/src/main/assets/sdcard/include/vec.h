@@ -29,23 +29,23 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 typedef cl_float3 Vec;
 
-#define vinit(v, a, b, c) { (v).s[0] = a, (v).s[1] = b, (v).s[2] = c; }
-#define vassign(a, b) vinit(a, (b).s[0], (b).s[1], (b).s[2])
+#define vinit(v, a, b, c) { v = (cl_float3) {a, b, c}; }
+#define vassign(a, b) { a = b; }
 #define vclr(v) vinit(v, 0.f, 0.f, 0.f)
 #define vadd(v, a, b) vinit(v, (a).s[0] + (b).s[0], (a).s[1] + (b).s[1], (a).s[2] + (b).s[2])
 #define vsub(v, a, b) vinit(v, (a).s[0] - (b).s[0], (a).s[1] - (b).s[1], (a).s[2] - (b).s[2])
-#define vsadd(v, a, b) { float k = (a); vinit(v, (b).s[0] + k, (b).s[1] + k, (b).s[2] + k) }
-#define vssub(v, a, b) { float k = (a); vinit(v, (b).s[0] - k, (b).s[1] - k, (b).s[2] - k) }
+#define vsadd(v, a, b) vinit(v, (b).s[0] + a, (b).s[1] + a, (b).s[2] + a)
+#define vssub(v, a, b) vinit(v, (b).s[0] - a, (b).s[1] - a, (b).s[2] - a)
 #define vmul(v, a, b) vinit(v, (a).s[0] * (b).s[0], (a).s[1] * (b).s[1], (a).s[2] * (b).s[2])
-#define vsmul(v, a, b) { float k = (a); vinit(v, k * (b).s[0], k * (b).s[1], k * (b).s[2]) }
+#define vsmul(v, a, b) vinit(v, (b).s[0] * a, (b).s[1] * a, (b).s[2] * a)
 #define vdot(a, b) ((a).s[0] * (b).s[0] + (a).s[1] * (b).s[1] + (a).s[2] * (b).s[2])
 #define vnorm(v) { float l = 1.f / sqrt(vdot(v, v)); vsmul(v, l, v); }
 #define vxcross(v, a, b) vinit(v, (a).s[1] * (b).s[2] - (a).s[2] * (b).s[1], (a).s[2] * (b).s[0] - (a).s[0] * (b).s[2], (a).s[0] * (b).s[1] - (a).s[1] * (b).s[0])
 #define vfilter(v) ((v).s[0] > (v).s[1] && (v).s[0] > (v).s[2] ? (v).s[0] : (v).s[1] > (v).s[2] ? (v).s[1] : (v).s[2])
 #define viszero(v) (((v).s[0] == 0.f) && ((v).s[1] == 0.f) && ((v).s[2] == 0.f))
-#define norm(v) (sqrt((v).s[0]*(v).s[0] + (v).s[1]*(v).s[1] + (v).s[2]*(v).s[2]))
-#define dist(a, b) (sqrt( ((a).s[0]-(b).s[0])*((a).s[0]-(b).s[0])  +   ((a).s[1]-(b).s[1])*((a).s[1]-(b).s[1])   +   ((a).s[2]-(b).s[2])*((a).s[2]-(b).s[2])))
-#define affine(v, t, a, b) vinit(v, (a).s[0]*t + (b).s[0]*(1-t), (a).s[1]*t + (b).s[1]*(1-t), (a).s[2]*t + (b).s[2]*(1-t))
+#define norm(v) (sqrt((v).s[0] * (v).s[0] + (v).s[1] * (v).s[1] + (v).s[2] * (v).s[2]))
+#define dist(a, b) (sqrt(((a).s[0]-(b).s[0]) * ((a).s[0]-(b).s[0]) + ((a).s[1]-(b).s[1]) * ((a).s[1]-(b).s[1]) + ((a).s[2]-(b).s[2]) * ((a).s[2]-(b).s[2])))
+#define affine(v, t, a, b) vinit(v, (a).s[0] * t + (b).s[0] * ( 1 - t ), (a).s[1] * t + (b).s[1] * ( 1 - t ), (a).s[2] * t + (b).s[2] * ( 1 - t ))
 
 #define clamp(x, a, b) ((x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
 #define sign(x) ((x) > 0 ? 1 : -1)
@@ -59,22 +59,26 @@ typedef cl_float3 Vec;
 typedef float3 Vec;
 
 #define vinit(v, a, b, c) { v = (float3)(a, b, c);  }
-#define vassign(a, b) vinit(a, (b).x, (b).y, (b).z)
+#define vassign(a, b) { a = b; }
 #define vclr(v) vinit(v, 0.f, 0.f, 0.f)
 #define vadd(v, a, b) { v = a + b; }
 #define vsub(v, a, b) { v = a - b; }
 #define vsadd(v, a, b) { v = a + b; }
 #define vssub(v, a, b) { v = a - b; }
 #define vmul(v, a, b) { v = a * b; }
+#define vmad(v, a, b, c) { v = mad(a, b, c); }
+#define vmsu(v, a, b, c) { v = mad(a, b, -c); }
 #define vsmul(v, a, b) { v = a * b; }
+#define vsmad(v, a, b, c) { v = mad(a, b, c); }
+#define vsmsu(v, a, b, c) { v = mad(a, b, -c); }
 #define vdot(a, b) ( dot(a, b) )
 #define vnorm(v) { v = normalize(v); }
 #define vxcross(v, a, b) { v = cross(a, b); }
-#define vfilter(v) ((v).x > (v).y && (v).x > (v).z ? (v).x : (v).y > (v).z ? (v).y : (v).z)
+#define vfilter(v) (max(v.x, v.y, v,z)) //((v).x > (v).y && (v).x > (v).z ? (v).x : (v).y > (v).z ? (v).y : (v).z)
 #define viszero(v) (((v).x == 0.f) && ((v).y == 0.f) && ((v).z == 0.f))
-#define norm(v) ( fast_length(v) )
-#define dist(a, b) ( fast_distance(a, b) )
-#define affine(v, t, a, b) { v = (a * t) + (b * (1-t)); }
+#define norm(v) ( length(v) )
+#define dist(a, b) ( distance(a, b) )
+#define affine(v, t, a, b) { v = t * a + (1 - t) * b; }
 #endif
 
 #define toInt(x) ((int)(pow(clamp(x, 0.f, 1.f), 1.f / 2.2f) * 255.f + .5f))
