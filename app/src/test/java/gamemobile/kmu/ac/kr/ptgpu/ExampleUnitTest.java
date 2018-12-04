@@ -1,4 +1,4 @@
-package ptgpu.kmu.ac.kr.ptgpu;
+package gamemobile.kmu.ac.kr.ptgpu;
 
 import org.junit.Test;
 

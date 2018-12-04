@@ -1,4 +1,4 @@
-package ptgpu.kmu.ac.kr.ptgpu;
+package gamemobile.kmu.ac.kr.ptgpu;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;

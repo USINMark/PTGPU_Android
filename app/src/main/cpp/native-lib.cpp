@@ -18,7 +18,7 @@ char *strResPath;
 extern bool Read(char *fileName, bool *walllight);
 
 extern "C" JNIEXPORT jstring
-JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_stringFromJNI(
+JNICALL Java_gamemobile_kmu_ac_kr_ptgpu_PTGPURenderer_stringFromJNI(
         JNIEnv *env,
         jobject /* this */) {
     std::string hello = "Hello from C++";
@@ -26,7 +26,7 @@ JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_stringFromJNI(
 }
 
 extern "C" JNIEXPORT void
-JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_initSmallPtGPU(JNIEnv* env, jobject /* this */, jint u, jint f, jstring k, jint w, jint h, jstring s, jstring r, jobject assetManager)
+JNICALL Java_gamemobile_kmu_ac_kr_ptgpu_PTGPURenderer_initSmallPtGPU(JNIEnv* env, jobject /* this */, jint u, jint f, jstring k, jint w, jint h, jstring s, jstring r, jobject assetManager)
 {
     bool walllight = true;
     srand(time(NULL));
@@ -68,7 +68,7 @@ JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_initSmallPtGPU(JNIEnv* env, job
 }
 
 extern "C" JNIEXPORT void
-JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_reinitCamera(JNIEnv* env, jobject /* this */, jfloat origx, jfloat origy, jfloat origz, jfloat targx, jfloat targy, jfloat targz)
+JNICALL Java_gamemobile_kmu_ac_kr_ptgpu_PTGPURenderer_reinitCamera(JNIEnv* env, jobject /* this */, jfloat origx, jfloat origy, jfloat origz, jfloat targx, jfloat targy, jfloat targz)
 {
     camera.orig.s[0] = origx,camera.orig.s[1] = origy, camera.orig.s[2] = origz;
     camera.target.s[0] = targx, camera.target.s[1] = targy, camera.target.s[2] = targz;
@@ -77,13 +77,13 @@ JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_reinitCamera(JNIEnv* env, jobje
 }
 
 extern "C" JNIEXPORT void
-JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_touchFunc(JNIEnv* env, jobject /* this */, int deltax, int deltay)
+JNICALL Java_gamemobile_kmu_ac_kr_ptgpu_PTGPURenderer_touchFunc(JNIEnv* env, jobject /* this */, int deltax, int deltay)
 {
     touchFunc(deltax, deltay);
 }
 
 extern "C" JNIEXPORT jintArray
-JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_updateRendering(JNIEnv* env, jobject /* this */) {
+JNICALL Java_gamemobile_kmu_ac_kr_ptgpu_PTGPURenderer_updateRendering(JNIEnv* env, jobject /* this */) {
     unsigned int *pixels = DrawFrame();
 
     // Get JNI Env for all function calls
@@ -94,7 +94,7 @@ JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_updateRendering(JNIEnv* env, jo
 }
 
 extern "C" JNIEXPORT void
-JNICALL Java_ptgpu_kmu_ac_kr_ptgpu_PTGPURenderer_finishRendering(JNIEnv* env, jobject /* this */) {
+JNICALL Java_gamemobile_kmu_ac_kr_ptgpu_PTGPURenderer_finishRendering(JNIEnv* env, jobject /* this */) {
     // Get JNI Env for all function calls
 }
 

@@ -1,4 +1,4 @@
-package ptgpu.kmu.ac.kr.ptgpu;
+package gamemobile.kmu.ac.kr.ptgpu;
 
 import android.content.Context;
 import android.content.res.AssetManager;
@@ -22,9 +22,9 @@ import javax.microedition.khronos.opengles.GL10;
  */
 
 public class PTGPURenderer implements GLSurfaceView.Renderer {
-    int texW = 640;//canvas.getWidth();
-    int texH = 480;//canvas.getHeight();
-    int[] textures = new int[1];
+    private int texW = 640;//canvas.getWidth();
+    private int texH = 480;//canvas.getHeight();
+    private int[] textures = new int[1];
 
     private int inv = 0;
     private final boolean bFile = false;

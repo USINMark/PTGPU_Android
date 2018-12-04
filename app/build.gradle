@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 26
     defaultConfig {
-        applicationId "ptgpu.kmu.ac.kr.ptgpu"
+        applicationId "gamemobile.kmu.ac.kr.ptgpu"
         minSdkVersion 23
         targetSdkVersion 26
         versionCode 1

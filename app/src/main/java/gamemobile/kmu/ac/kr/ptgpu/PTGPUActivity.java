@@ -1,4 +1,4 @@
-package ptgpu.kmu.ac.kr.ptgpu;
+package gamemobile.kmu.ac.kr.ptgpu;
 
 import android.Manifest;
 import android.app.Activity;
@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class PTGPU extends Activity {
+public class PTGPUActivity extends Activity {
     private static final int REQUEST_READ_WRITE_EXTERNAL_STORAGE = 1;
 
     public String copyDirorfileFromAssetManager(String arg_assetDir, String arg_destinationDir) throws IOException
