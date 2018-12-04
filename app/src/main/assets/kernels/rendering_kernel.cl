@@ -1206,7 +1206,7 @@ void GenerateCameraRay(
  rinit(*ray, rorig, rdir);
  //{ { ((*ray).o).x = (rorig).x; ((*ray).o).y = (rorig).y; ((*ray).o).z = (rorig).z; }; { ((*ray).d).x = (rdir).x; ((*ray).d).y = (rdir).y; ((*ray).d).z = (rdir).z; }; };
 }
-  
+
 __kernel void RadianceGPU(
     __global Vec *colors, __global unsigned int *seedsInput,
  __constant Camera *camera,

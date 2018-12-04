@@ -1,6 +1,6 @@
 
 #include "clheader.h"
- 
+
 inline float GetRandom(__global unsigned int *seed0, __global unsigned int *seed1) {
  *seed0 = 36969 * ((*seed0) & 65535) + ((*seed0) >> 16);
  *seed1 = 18000 * ((*seed1) & 65535) + ((*seed1) >> 16);
@@ -400,7 +400,7 @@ __constant
  const Ray *r,
  const float maxt) {
 #if (ACCELSTR == 0)
-    short i = shapeCnt;
+    short i = shapeCnt - 1;
 
     for (; i--;) {
         float d = 0.0f;
@@ -919,8 +919,8 @@ __constant
  ) {
  const int gid = get_global_id(0);
 
- const int x = results[gid].x;//gid % width; //
- const int y = results[gid].y;//gid / width; //
+ const int x = results[gid].x; //gid % width; //
+ const int y = results[gid].y; //gid / width; //
 
  const int sgid2 = gid << 1;
   
@@ -1180,7 +1180,7 @@ __kernel void GenerateCameraRay_exp(
  const int x = gid % width;
  const int y = gid / width;
 
- const int sgid = y * width + x;
+ const int sgid = y > 0 ? (y - 1) * width + x : x;
  const int sgid2 = sgid << 1;
    
  const float invWidth = 1.f / width;
@@ -1224,7 +1224,7 @@ __kernel void FillPixel_exp(
  const int x = results[gid].x; //gid % width;
  const int y = results[gid].y; //gid / width;
  
- const int sgid = y * width + x;
+ const int sgid = y > 0 ? (y - 1) * width + x : x;
  const int sgid2 = sgid << 1;
  
  if (y >= height)
@@ -1241,11 +1241,11 @@ __kernel void FillPixel_exp(
   colors[sgid].z = (colors[sgid].z * k1 + results[sgid].p.z) * k2;
  }
 #ifdef __ANDROID__
- pixels[y * width + x] = (toInt(colors[sgid].x)  << 16) |
+ pixels[sgid] = (toInt(colors[sgid].x)  << 16) |
    (toInt(colors[sgid].y) << 8) |
    (toInt(colors[sgid].z)) | 0xff000000;
 #else
- pixels[y * width + x] = (toInt(colors[sgid].x)) |
+ pixels[sgid] = (toInt(colors[sgid].x)) |
    (toInt(colors[sgid].y) << 8) |
    (toInt(colors[sgid].z) << 16) | 0xff000000;
 #endif   
