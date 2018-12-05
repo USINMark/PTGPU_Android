@@ -759,7 +759,7 @@ void UpdateCamera() {
 
 void touchFunc(int deltax, int deltay) {
 	if (deltax != 0 || deltay != 0) {
-// rotate the camera using pitch (nodding movement) and yaw (nonono movement)
+		// rotate the camera using pitch (nodding movement) and yaw (nonono movement)
 		camera.yaw += deltax * 0.0001;
 		camera.yaw = camera.yaw - TWO_PI * floor(camera.yaw / TWO_PI);
 		camera.pitch += -deltay * 0.0001;

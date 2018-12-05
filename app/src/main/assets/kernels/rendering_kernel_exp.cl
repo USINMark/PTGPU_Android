@@ -926,8 +926,8 @@ __constant
   
  if (terminated[gid] != 1)
  {
-	Ray aray = rays[gid];
-	
+    Ray aray = rays[gid];
+
 	RadianceOnePathTracing(shapes, shapeCnt, lightCnt, 
 #if (ACCELSTR == 1)
 			btn, btl, 
@@ -938,7 +938,7 @@ __constant
 #ifdef DEBUG_INTERSECTIONS
 		, debug1, debug2
 #endif
-	);	
+	);
 	
 	rays[gid] = aray;
  }   
@@ -986,7 +986,6 @@ __constant
  char specularBounce = 1;
  
  for (;; ++depth) {
-
   if (depth > MAX_DEPTH) {
    *result = rad;
    return;
@@ -1183,19 +1182,20 @@ __kernel void GenerateCameraRay_exp(
  const int sgid = y > 0 ? (y - 1) * width + x : x;
  const int sgid2 = sgid << 1;
    
- const float invWidth = 1.f / width;
- const float invHeight = 1.f / height;
+ const float invWidth = 1.f / (float)width;
+ const float invHeight = 1.f / (float)height;
  
  const float r1 = GetRandom(&seedsInput[sgid2], &seedsInput[sgid2 + 1]) - .5f;
  const float r2 = GetRandom(&seedsInput[sgid2], &seedsInput[sgid2 + 1]) - .5f;
  const float kcx = (x + r1) * invWidth - .5f;
  const float kcy = (y + r2) * invHeight - .5f;
 
- throughput[gid].x = throughput[gid].y = throughput[gid].z = 1.f;
+ vinit(throughput[gid], 1.f, 1.f, 1.f);
  specularBounce[gid] = 1;
  terminated[gid] = 0;
- results[gid].x = x, results[gid].y = y, results[gid].p.x = results[gid].p.y = results[gid].p.z = 0.f;
- 
+ results[gid].x = x, results[gid].y = y;
+ vclr(results[gid].p);
+  
  Vec rdir;
   vinit(rdir,
  		camera->x.x * kcx + camera->y.x * kcy + camera->dir.x,
@@ -1236,9 +1236,11 @@ __kernel void FillPixel_exp(
  } else {
   const float k1 = currentSample;
   const float k2 = 1.f / (currentSample + 1.f);
-  colors[sgid].x = (colors[sgid].x * k1 + results[sgid].p.x) * k2;
-  colors[sgid].y = (colors[sgid].y * k1 + results[sgid].p.y) * k2;
-  colors[sgid].z = (colors[sgid].z * k1 + results[sgid].p.z) * k2;
+  //colors[sgid].x = (colors[sgid].x * k1 + results[sgid].p.x) * k2;
+  //colors[sgid].y = (colors[sgid].y * k1 + results[sgid].p.y) * k2;
+  //colors[sgid].z = (colors[sgid].z * k1 + results[sgid].p.z) * k2;
+  vmad(colors[sgid], colors[sgid], k1, results[sgid].p);
+  vsmul(colors[sgid], k2, colors[sgid]);
  }
 #ifdef __ANDROID__
  pixels[sgid] = (toInt(colors[sgid].x)  << 16) |
@@ -1329,7 +1331,7 @@ __kernel void GenerateCameraRay_expbox(
     const short x = (gid % bwidth) + startx;
     const short y = (gid / bwidth) + starty;
 
-    const int sgid = (y - starty) * bwidth + (x - startx);
+    const int sgid = (y - starty + 1) > 0 ? (y - starty) * bwidth + (x - startx) : (x - startx);
     const int sgid2 = sgid << 1;
 
     const float invWidth = 1.f / twidth;
@@ -1374,7 +1376,7 @@ __kernel void FillPixel_expbox(
     const short x = results[gid].x - startx; //gid % width;
     const short y = results[gid].y - starty; //gid / width;
 
-    const int sgid = y * bwidth + x;
+    const int sgid = y > 0 ? (y - 1) * bwidth + x : x;
     const int sgid2 = sgid << 1;
 
     if (y >= bheight)

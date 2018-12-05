@@ -1198,7 +1198,7 @@ void GenerateCameraRay(
  Vec rorig;
  vsmul(rorig, 0.1f, rdir);
  //{ float k = (0.1f); { (rorig).x = k * (rdir).x; (rorig).y = k * (rdir).y; (rorig).z = k * (rdir).z; } };
- vadd(rorig, rorig, camera->orig)
+ vadd(rorig, rorig, camera->orig);
  //{ (rorig).x = (rorig).x + (camera->orig).x; (rorig).y = (rorig).y + (camera->orig).y; (rorig).z = (rorig).z + (camera->orig).z; }
 
  vnorm(rdir);
@@ -1262,7 +1262,7 @@ __constant
 #endif
  );
 
- const int i = (height - y - 1) * width + x;
+ const int i = (height - y) > 0 ? (height - y - 1) * width + x : x;
  if (currentSample == 0) {
   vassign(colors[i], r);
  } else {
@@ -1322,7 +1322,7 @@ __constant
  const short xwithinbox = gid % bwidth;
  const short ywithinbox = gid / bwidth;
  
- const int sgid = (y + ywithinbox) * twidth + (x + xwithinbox);
+ const int sgid = (y + ywithinbox) > 0 ? (y + ywithinbox - 1) * twidth + (x + xwithinbox) : (x + xwithinbox);
  const int sgid2 = sgid << 1;
  
  if (y + ywithinbox >= theight)
