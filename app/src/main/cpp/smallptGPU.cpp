@@ -56,6 +56,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 bool Read(char *fileName, bool *walllight);
 #else 
 #include <android/asset_manager.h>
+#include <pthread.h>
+
 #endif
 
 #ifdef EXP_KERNEL
@@ -1285,36 +1287,60 @@ unsigned int *DrawFrame()
     return pPixels;
 }
 #else //NOT CPU_PARTRENDERING
+#define NUM_THREADS 7
+pthread_t threads[NUM_THREADS];
+
+void *perform_work(void *arguments){
+    int index = *((int *)arguments);
+    double startTime = WallClockTime();
+
+    const float invWidth = 1.f / (float)width;
+    const float invHeight = 1.f / (float)height;
+
+    for(int y = index; y < (int) height; y += NUM_THREADS) {
+        for(int x = 0; x < (int) width; x++) {
+            const int sgid = y > 0 ? (y - 1) * width + x : x;
+            const int sgid2 = sgid << 1;
+
+            const float r1 = GetRandom(&seeds[sgid2], &seeds[sgid2 + 1]) - .5f;
+            const float r2 = GetRandom(&seeds[sgid2], &seeds[sgid2 + 1]) - .5f;
+
+            const float kcx = (x + r1) * invWidth - .5f;
+            const float kcy = (y + r2) * invHeight - .5f;
+
+            Vec rdir;
+            vinit(rdir,
+                  camera.x.s[0] * kcx + camera.y.s[0] * kcy + camera.dir.s[0],
+                  camera.x.s[1] * kcx + camera.y.s[1] * kcy + camera.dir.s[1],
+                  camera.x.s[2] * kcx + camera.y.s[2] * kcy + camera.dir.s[2]);
+
+            Vec rorig;
+            vsmul(rorig, 0.1f, rdir);
+            vadd(rorig, rorig, camera.orig);
+
+            vnorm(rdir);
+            rinit(ray[sgid], rorig, rdir);
+        }
+    }
+
+    LOGI("Thread %d, RayChange time %.5f msec\n", index, WallClockTime() - startTime);
+
+    return NULL;
+}
+
 void ChangeRays() {
-	const float invWidth = 1.f / (float)width;
-	const float invHeight = 1.f / (float)height;
+    int thread_args[NUM_THREADS];
 
-#pragma omp parallel for
-	for(int y = 0; y < (int) height; y++) {
-		for(int x = 0; x < (int) width; x++) {
-			const int sgid = y > 0 ? (y - 1) * width + x : x;
-			const int sgid2 = sgid << 1;
+    //create all threads one by one
+    for (int i = 0; i < NUM_THREADS; i++) {
+        thread_args[i] = i;
+        pthread_create(&threads[i], NULL, perform_work, &thread_args[i]);
+    }
 
-			const float r1 = GetRandom(&seeds[sgid2], &seeds[sgid2 + 1]) - .5f;
-			const float r2 = GetRandom(&seeds[sgid2], &seeds[sgid2 + 1]) - .5f;
-
-			const float kcx = (x + r1) * invWidth - .5f;
-			const float kcy = (y + r2) * invHeight - .5f;
-
-			Vec rdir;
-			vinit(rdir,
-				  camera.x.s[0] * kcx + camera.y.s[0] * kcy + camera.dir.s[0],
-				  camera.x.s[1] * kcx + camera.y.s[1] * kcy + camera.dir.s[1],
-				  camera.x.s[2] * kcx + camera.y.s[2] * kcy + camera.dir.s[2]);
-
-			Vec rorig;
-			vsmul(rorig, 0.1f, rdir);
-			vadd(rorig, rorig, camera.orig);
-
-			vnorm(rdir);
-			rinit(ray[sgid], rorig, rdir);
-		}
-	}
+    //wait for each thread to complete
+    //for (int i = 0; i < NUM_THREADS; i++) {
+    //    pthread_join(threads[i], NULL);
+    //}
 }
 
 unsigned int *DrawFrame() {
@@ -1327,34 +1353,7 @@ unsigned int *DrawFrame() {
 	for (int i = 0; i < MAX_SPP; i++)
 	{
 		int rayCnt = width * height;
-        index = 0;
-#if 0
-		/* Set kernel arguments */
-		setStartTime = WallClockTime();
-		clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&cameraBuffer));
-        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&seedBuffer));
-        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(short), (void *)&width));
-        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(short), (void *)&height));
-        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&rayBuffer));
-        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&throughputBuffer));
-        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&specularBounceBuffer));
-        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&terminatedBuffer));
-        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&resultBuffer));
-		setTotalTime += (WallClockTime() - setStartTime);
 
-		kernelStartTime = WallClockTime();
-		ExecuteKernel(kernelGen, rayCnt);
-		//clFinish(commandQueue);
-		kernelTotalTime += (WallClockTime() - kernelStartTime);
-#else
-		ChangeRays();
-
-        clErrchk(clEnqueueWriteBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) *  width * height, ray, 0, NULL, NULL));
-        clErrchk(clEnqueueWriteBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) *  width * height, throughput, 0, NULL, NULL));
-        clErrchk(clEnqueueWriteBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(char) *  width * height, specularBounce, 0, NULL, NULL));
-        clErrchk(clEnqueueWriteBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(char) *  width * height, terminated, 0, NULL, NULL));
-        clErrchk(clEnqueueWriteBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) *  width * height, result, 0, NULL, NULL));
-#endif
         for (int j = 0; j < MAX_DEPTH; j++)
 		{
 			index = 0;
@@ -1452,6 +1451,37 @@ unsigned int *DrawFrame() {
 		ExecuteKernel(kernelFill, width * height);
 		//clFinish(commandQueue);
 		kernelTotalTime += (WallClockTime() - kernelStartTime);
+
+#if 1
+		index = 0;
+
+		/* Set kernel arguments */
+		setStartTime = WallClockTime();
+		clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&cameraBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&seedBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(short), (void *)&width));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(short), (void *)&height));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&rayBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&throughputBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&specularBounceBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&terminatedBuffer));
+        clErrchk(clSetKernelArg(kernelGen, index++, sizeof(cl_mem), (void *)&resultBuffer));
+		setTotalTime += (WallClockTime() - setStartTime);
+
+		kernelStartTime = WallClockTime();
+		ExecuteKernel(kernelGen, rayCnt);
+		//clFinish(commandQueue);
+		kernelTotalTime += (WallClockTime() - kernelStartTime);
+#else
+		ChangeRays();
+
+		//clErrchk(clEnqueueWriteBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) *  width * height, ray, 0, NULL, NULL));
+		clErrchk(clEnqueueWriteBuffer(commandQueue, throughputBuffer, CL_TRUE, 0, sizeof(Vec) *  width * height, throughput, 0, NULL, NULL));
+		clErrchk(clEnqueueWriteBuffer(commandQueue, specularBounceBuffer, CL_TRUE, 0, sizeof(char) *  width * height, specularBounce, 0, NULL, NULL));
+		clErrchk(clEnqueueWriteBuffer(commandQueue, terminatedBuffer, CL_TRUE, 0, sizeof(char) *  width * height, terminated, 0, NULL, NULL));
+		clErrchk(clEnqueueWriteBuffer(commandQueue, resultBuffer, CL_TRUE, 0, sizeof(Result) *  width * height, result, 0, NULL, NULL));
+        clErrchk(clEnqueueWriteBuffer(commandQueue, rayBuffer, CL_TRUE, 0, sizeof(Ray) *  width * height, ray, 0, NULL, NULL));
+#endif
 	}
 
 	//--------------------------------------------------------------------------

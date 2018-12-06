@@ -168,7 +168,8 @@ public class PTGPUActivity extends Activity {
             setContentView(pgv);
         }
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-     }
+        //getWindow().setSustainedPerformanceMode(true);
+    }
 
     /**
      * A native method that is implemented by the 'native-lib' native library,
